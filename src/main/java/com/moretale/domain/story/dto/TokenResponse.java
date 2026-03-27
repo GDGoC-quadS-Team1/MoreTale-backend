@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class TokenResponse {
 
+    // 토큰 고정 ID (단어 저장 시 사용될 식별자)
+    private Long id;
+
     // 원문 단어 텍스트 (정규화된 형태, 예: "사자")
     private String text;
 
@@ -30,14 +33,18 @@ public class TokenResponse {
     // 원문 언어 코드 (예: "ko")
     private String sourceLanguage;
 
-    // 번역 언어 코드 (예: "vi")
+    // 번역 언어 코드 (예: "ja", "vi" 등 / highlight=true인 경우에만 존재)
     private String targetLanguage;
 
+    /**
+     * Entity -> DTO 변환 메서드
+     */
     public static TokenResponse from(StoryToken token) {
         return TokenResponse.builder()
+                .id(token.getTokenId()) // token.getId() -> token.getTokenId()로 수정 완료
                 .text(token.getText())
                 .highlight(token.getHighlight())
-                // highlight=false이면 null 반환 (응답 경량화)
+                // highlight=false이면 null을 반환하여 응답 경량화
                 .translation(token.getHighlight() ? token.getTranslation() : null)
                 .definition(token.getHighlight() ? token.getDefinition() : null)
                 .audioUrl(token.getHighlight() ? token.getAudioUrl() : null)
