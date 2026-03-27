@@ -54,6 +54,9 @@ public class SecurityConfig {
                         // 동화 생성 API (인증 필요)
                         .requestMatchers("/api/stories/**").authenticated()
 
+                        // 단어장 API (인증 필요)
+                        .requestMatchers("/api/vocabulary/**").authenticated()
+
                         // 로그인 필요
                         .requestMatchers(HttpMethod.POST, "/api/dictionary/*/bookmark").authenticated()    // 북마크 추가
                         .requestMatchers(HttpMethod.DELETE, "/api/dictionary/*/bookmark").authenticated()  // 북마크 제거
