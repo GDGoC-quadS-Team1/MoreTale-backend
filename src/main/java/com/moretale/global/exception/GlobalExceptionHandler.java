@@ -1,11 +1,15 @@
 package com.moretale.global.exception;
 
+import com.moretale.domain.vocabulary.exception.*;
 import com.moretale.global.common.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
@@ -15,7 +19,8 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 비즈니스 로직 예외 처리
+    // ── 1. 비즈니스 / 커스텀 공통 예외 (ErrorCode 기반) ──────────────────────
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
         log.error("BusinessException: {}", e.getMessage());
@@ -39,7 +44,41 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(errorCode.getCode(), e.getMessage()));
     }
 
-    // Validation Exception 처리
+    // ── 2. Vocabulary 도메인 전용 예외 (HTTP 상태코드 고정형) ──────────────────
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(VocabularyNotFoundException.class)
+    public ApiResponse<Void> handleVocabularyNotFound(VocabularyNotFoundException e) {
+        log.error("VocabularyNotFoundException: {}", e.getMessage());
+        return ApiResponse.error("VOCABULARY_NOT_FOUND", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ExceptionHandler(VocabularyAccessDeniedException.class)
+    public ApiResponse<Void> handleVocabularyAccessDenied(VocabularyAccessDeniedException e) {
+        log.error("VocabularyAccessDeniedException: {}", e.getMessage());
+        return ApiResponse.error("VOCABULARY_ACCESS_DENIED", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(VocabularyDuplicateException.class)
+    public ApiResponse<Void> handleVocabularyDuplicate(VocabularyDuplicateException e) {
+        log.error("VocabularyDuplicateException: {}", e.getMessage());
+        return ApiResponse.error("VOCABULARY_DUPLICATE", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(TokenNotFoundException.class)
+    public ApiResponse<Void> handleTokenNotFound(TokenNotFoundException e) {
+        log.error("TokenNotFoundException: {}", e.getMessage());
+        return ApiResponse.error("TOKEN_NOT_FOUND", e.getMessage());
+    }
+
+    // ── 3. 클라이언트 요청 에러 (Validation / JSON Parsing) ──────────────────
+
+    /**
+     * @Valid 검증 실패 시 발생 (필수값 누락 등)
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(
             MethodArgumentNotValidException e) {
@@ -58,7 +97,19 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("VALIDATION_ERROR", "입력값 검증 실패", errors));
     }
 
-    // 기타 Exception 처리
+    /**
+     * JSON 파싱 에러 (타입 불일치 - String을 Long에 넣으려 할 때 등)
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        log.error("HttpMessageNotReadableException: {}", e.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error("INVALID_JSON_FORMAT", "요청 데이터 형식이 올바르지 않습니다. 필드 타입을 확인해주세요."));
+    }
+
+    // ── 4. 기타 예외 (최종 방어선) ──────────────────────────────────────────────
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         // 상세 스택 트레이스는 로그로 남겨 추적 가능하게 함
