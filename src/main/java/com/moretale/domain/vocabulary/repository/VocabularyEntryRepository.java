@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public interface VocabularyEntryRepository extends JpaRepository<VocabularyEntry, Long> {
 
-    // 내 전체 단어장 조회 (페이징)
+    // 내 전체 단어장 조회 (페이징) - Pageable에 isFavorite DESC가 포함되어 들어옴
     Page<VocabularyEntry> findByUser_UserId(Long userId, Pageable pageable);
 
     // 특정 동화 기준 단어장 조회 (페이징)
@@ -44,33 +44,35 @@ public interface VocabularyEntryRepository extends JpaRepository<VocabularyEntry
 
     /**
      * 통합 필터 조회 (즐겨찾기 + 키워드 + 동화 필터 조합)
-     * 프론트 정렬 UI 매핑:
-     *   최신순    → sort=createdAt,desc
-     *   오래된순  → sort=createdAt,asc
-     *   가나다순  → sort=word,asc
      *
-     * @param userId    사용자 ID (필수)
-     * @param storyId   동화 ID 필터 (null이면 전체)
-     * @param favorite  즐겨찾기 필터 (null이면 전체, true이면 즐겨찾기만)
-     * @param keyword   단어/번역어 검색 (null 또는 blank이면 전체)
-     * @param pageable  페이징 + 정렬
+     * ─ keyword 처리 방식 변경 ────────────────────────────────────────────────
+     *   기존: LIKE CONCAT('%', :keyword, '%') — PostgreSQL + Hibernate 6 조합에서
+     *         keyword=null 시 파라미터 타입을 bytea로 추론하여 타입 오류 발생
+     *
+     *   변경: :keywordPattern 으로 받고, Service에서 null → null, 값 → "%값%" 변환
+     *         IS NULL 분기와 LIKE 절의 파라미터를 분리하여 타입 충돌 방지
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * @param userId         사용자 ID (필수)
+     * @param storyId        동화 ID 필터 (null이면 전체)
+     * @param favorite       즐겨찾기 필터 (null이면 전체, true이면 즐겨찾기만)
+     * @param keywordPattern LIKE 패턴 문자열 (null이면 전체, 값이면 "%keyword%")
+     * @param pageable       페이징 + 정렬 (isFavorite DESC가 선행 적용된 Pageable)
      */
     @Query("""
-        SELECT v FROM VocabularyEntry v
-        WHERE v.user.userId = :userId
-          AND (:storyId IS NULL OR v.story.storyId = :storyId)
-          AND (:favorite IS NULL OR v.isFavorite = :favorite)
-          AND (
-                :keyword IS NULL
-                OR v.word LIKE CONCAT('%', :keyword, '%')
-                OR v.translation LIKE CONCAT('%', :keyword, '%')
-              )
-    """)
+    SELECT v FROM VocabularyEntry v
+    WHERE v.user.userId = :userId
+      AND (:storyId IS NULL OR v.story.storyId = :storyId)
+      AND (:favorite IS NULL OR v.isFavorite = :favorite)
+      AND (:keywordPattern IS NULL
+            OR v.word LIKE :keywordPattern
+            OR v.translation LIKE :keywordPattern)
+""")
     Page<VocabularyEntry> findWithFilters(
             @Param("userId") Long userId,
             @Param("storyId") Long storyId,
             @Param("favorite") Boolean favorite,
-            @Param("keyword") String keyword,
+            @Param("keywordPattern") String keywordPattern,
             Pageable pageable
     );
 
