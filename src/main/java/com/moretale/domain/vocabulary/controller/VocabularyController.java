@@ -27,20 +27,19 @@ import java.util.List;
 /**
  * 단어장 API Controller
  *
- * ┌──────────────────────────────────────────────────────────────────────┐
- * │  API 명세 (프론트 정렬 UI 연동)                                        │
- * ├──────────────┬─────────────────────────────────────────────────────── │
- * │  정렬 UI     │  요청 파라미터                                          │
- * ├──────────────┼───────────────────────────────────────────────────────┤
- * │  최신순      │  GET /api/vocabulary?sort=createdAt,desc               │
- * │  오래된순    │  GET /api/vocabulary?sort=createdAt,asc                │
- * │  가나다순    │  GET /api/vocabulary?sort=word,asc                     │
- * ├──────────────┼───────────────────────────────────────────────────────┤
- * │  즐겨찾기    │  GET /api/vocabulary?favorite=true                     │
- * │  키워드검색  │  GET /api/vocabulary?keyword=사자                      │
- * │  동화필터    │  GET /api/vocabulary?storyId=1                         │
- * │  조합        │  GET /api/vocabulary?storyId=1&favorite=true&sort=word,asc │
- * └──────────────┴───────────────────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────────────────────────────┐
+ * │  API 명세 (프론트 정렬 UI 연동)                                               │
+ * ├──────────────┬───────────────────────────────────────────────────────────────┤
+ * │  정렬 UI     │  요청 파라미터              │  실제 적용 ORDER BY              │
+ * ├──────────────┼─────────────────────────────┼──────────────────────────────────┤
+ * │  최신순(기본)│  sort=createdAt,desc        │  isFavorite DESC, createdAt DESC │
+ * │  오래된순    │  sort=createdAt,asc         │  isFavorite DESC, createdAt ASC  │
+ * │  가나다순    │  sort=word,asc              │  isFavorite DESC, word ASC       │
+ * ├──────────────┼─────────────────────────────┼──────────────────────────────────┤
+ * │  즐겨찾기    │  favorite=true              │  (isFavorite 필터이므로 선행 정렬 생략) │
+ * │  키워드검색  │  keyword=사자               │                                  │
+ * │  동화필터    │  storyId=1                  │                                  │
+ * └──────────────┴─────────────────────────────┴──────────────────────────────────┘
  */
 @Tag(name = "Vocabulary", description = "단어장 API")
 @Slf4j
@@ -77,26 +76,29 @@ public class VocabularyController {
      *   - sort     : createdAt,desc | createdAt,asc | word,asc
      *   - page     : 페이지 번호 (0부터 시작)
      *   - size     : 페이지 크기 (기본 20)
+     *
+     * ※ 정렬 정책: 즐겨찾기(isFavorite DESC) 우선 → 사용자 선택 정렬 순
+     *   단, favorite=true 필터 사용 시에는 isFavorite 선행 정렬 생략
      */
     @Operation(
             summary = "단어장 조회",
             description = """
-                    단어장을 조회합니다. 필터와 정렬을 조합할 수 있습니다.
+                    단어장을 조회합니다. 즐겨찾기 단어가 항상 상단에 표시됩니다.
                     
                     **정렬 파라미터 (sort)**
-                    - `sort=createdAt,desc` : 최신순 (기본값)
-                    - `sort=createdAt,asc`  : 오래된순
-                    - `sort=word,asc`       : 가나다순
+                    - `sort=createdAt,desc` : 즐겨찾기 우선 → 최신순 (기본값)
+                    - `sort=createdAt,asc`  : 즐겨찾기 우선 → 오래된순
+                    - `sort=word,asc`       : 즐겨찾기 우선 → 가나다순
                     
                     **필터 파라미터**
                     - `storyId=1`       : 특정 동화 단어만
-                    - `favorite=true`   : 즐겨찾기 단어만
+                    - `favorite=true`   : 즐겨찾기 단어만 (이 경우 isFavorite 선행 정렬 생략)
                     - `keyword=사자`    : 단어/번역어 검색
                     
                     **조합 예시**
                     - `?storyId=1&sort=word,asc`
                     - `?favorite=true&sort=createdAt,desc`
-                    - `?storyId=1&favorite=true&keyword=사자&sort=word,asc`
+                    - `?storyId=1&keyword=사자&sort=word,asc`
                     """
     )
     @GetMapping
@@ -108,7 +110,8 @@ public class VocabularyController {
             @RequestParam(name = "favorite", required = false) Boolean favorite,
             @Parameter(description = "단어/번역어 검색 키워드")
             @RequestParam(name = "keyword", required = false) String keyword,
-            @Parameter(description = "페이징 및 정렬")
+            @Parameter(description = "페이징 및 정렬 (기본: 즐겨찾기 우선 → 최신순)")
+            // ✅ 변경: 기본 정렬을 createdAt DESC로 명시 (isFavorite DESC는 Service에서 자동 삽입)
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
@@ -120,13 +123,16 @@ public class VocabularyController {
         condition.setFavorite(favorite);
         condition.setKeyword(keyword);
 
-        // 필터가 하나도 없으면 기존 단순 조회 사용 (성능 최적화)
-        Page<VocabularyResponse> result;
-        if (storyId == null && favorite == null && keyword == null) {
-            result = vocabularyService.getAll(principal.getUserId(), pageable);
-        } else {
-            result = vocabularyService.getWithFilters(principal.getUserId(), condition, pageable);
-        }
+        /*
+         * 필터 유무와 관계없이 getWithFilters()로 통합
+         * → isFavorite 우선 정렬 정책을 필터 없는 경우에도 일관되게 적용하기 위해
+         *   필터 없음(전체 조회) 분기도 getWithFilters()로 처리한다.
+         *
+         * 참고: getAll()은 Service에서 내부적으로 유지되며
+         *       다른 곳(예: 배치, 관리자 API)에서 재사용 가능
+         */
+        Page<VocabularyResponse> result =
+                vocabularyService.getWithFilters(principal.getUserId(), condition, pageable);
 
         return ApiResponse.success(result);
     }

@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -92,6 +93,7 @@ public class VocabularyService {
 
     // 전체 단어장 조회
     public Page<VocabularyResponse> getAll(Long userId, Pageable pageable) {
+        // buildSafeVocabularyPageable 내부에서 isFavorite DESC가 맨 앞에 삽입됨
         Pageable safePageable = buildSafeVocabularyPageable(pageable);
         return vocabularyEntryRepository
                 .findByUser_UserId(userId, safePageable)
@@ -100,19 +102,28 @@ public class VocabularyService {
 
     // 특정 동화 기준 단어장 조회
     public Page<VocabularyResponse> getByStory(Long userId, Long storyId, Pageable pageable) {
+        // buildSafeVocabularyPageable 내부에서 isFavorite DESC가 맨 앞에 삽입됨
         Pageable safePageable = buildSafeVocabularyPageable(pageable);
         return vocabularyEntryRepository
                 .findByUser_UserIdAndStory_StoryId(userId, storyId, safePageable)
                 .map(VocabularyResponse::from);
     }
 
-    // 통합 필터 조회
     /**
      * 단어장 통합 필터 조회
-     * 프론트 정렬 파라미터 매핑:
-     *   최신순   → sort=createdAt,desc
-     *   오래된순 → sort=createdAt,asc
-     *   가나다순 → sort=word,asc
+     *
+     * ─ 정렬 정책 (isFavorite 우선) ──────────────────────────────────────────
+     *   buildSafeVocabularyPageable() 에서 isFavorite DESC 를 맨 앞에 고정하고
+     *   사용자가 선택한 정렬(createdAt / word)을 그 뒤에 붙인다.
+     *
+     *   결과 ORDER BY 예시:
+     *     최신순   →  isFavorite DESC, createdAt DESC
+     *     오래된순 →  isFavorite DESC, createdAt ASC
+     *     가나다순 →  isFavorite DESC, word ASC
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * 단, favorite=true 필터가 걸린 경우에는 결과가 모두 즐겨찾기이므로
+     * isFavorite DESC 선행 정렬이 의미 없어 생략한다. (불필요한 ORDER BY 제거)
      *
      * @param userId    사용자 ID
      * @param condition 필터 조건 (storyId, favorite, keyword)
@@ -123,18 +134,20 @@ public class VocabularyService {
             VocabularySearchCondition condition,
             Pageable pageable
     ) {
-        Pageable safePageable = buildSafeVocabularyPageable(pageable);
-
-        // keyword 정규화: blank이면 null로 처리
-        String keyword = StringUtils.hasText(condition.getKeyword())
-                ? condition.getKeyword().trim()
+        // null이면 null 유지, 값이 있으면 "%keyword%" 패턴으로 변환
+        // Repository의 :keywordPattern 파라미터에 전달
+        String keywordPattern = StringUtils.hasText(condition.getKeyword())
+                ? "%" + condition.getKeyword().trim() + "%"
                 : null;
+
+        boolean skipFavoriteSort = Boolean.TRUE.equals(condition.getFavorite());
+        Pageable safePageable = buildSafeVocabularyPageable(pageable, skipFavoriteSort);
 
         log.info("단어장 필터 조회 - userId={}, storyId={}, favorite={}, keyword={}, sort={}",
                 userId,
                 condition.getStoryId(),
                 condition.getFavorite(),
-                keyword,
+                keywordPattern,
                 safePageable.getSort());
 
         return vocabularyEntryRepository
@@ -142,7 +155,7 @@ public class VocabularyService {
                         userId,
                         condition.getStoryId(),
                         condition.getFavorite(),
-                        keyword,
+                        keywordPattern,
                         safePageable
                 )
                 .map(VocabularyResponse::from);
@@ -161,7 +174,7 @@ public class VocabularyService {
                 .toList();
     }
 
-    // 단어장 항목 수정 (기존 유지)
+    // 단어장 항목 수정 (즐겨찾기 / 학습상태 / 메모)
     @Transactional
     public VocabularyResponse patch(Long userId, Long vocabularyId, VocabularyPatchRequest request) {
         VocabularyEntry entry = findOwnedEntry(userId, vocabularyId);
@@ -188,52 +201,93 @@ public class VocabularyService {
         log.info("단어장 삭제 완료 - userId={}, vocabularyId={}", userId, vocabularyId);
     }
 
-    // 내부 공통 메서드
+    // ── 내부 공통 메서드 ────────────────────────────────────────────────────────
 
     // 소유권 확인 후 엔티티 반환 (없으면 404, 권한 없으면 403)
     private VocabularyEntry findOwnedEntry(Long userId, Long vocabularyId) {
-        // 먼저 존재 여부 확인
         if (!vocabularyEntryRepository.existsById(vocabularyId)) {
             throw new VocabularyNotFoundException(vocabularyId);
         }
-        // 소유권 확인
         return vocabularyEntryRepository
                 .findByVocabularyIdAndUser_UserId(vocabularyId, userId)
                 .orElseThrow(VocabularyAccessDeniedException::new);
     }
 
     /**
-     * 단어장 정렬 필드 화이트리스트 검증
-     * - 허용 필드: createdAt, word
-     * - 허용되지 않은 필드는 기본값(createdAt DESC)으로 대체
+     * 단어장 정렬 필드 화이트리스트 검증 + isFavorite DESC 선행 삽입
+     *
+     * ─ 정렬 규칙 ────────────────────────────────────────────────────────────
+     *   1. 허용 필드: isFavorite, createdAt, word  (그 외는 무시)
+     *   2. skipFavoriteSort = false 인 경우 (기본):
+     *        → isFavorite DESC 를 정렬 맨 앞에 고정
+     *        → 이후 사용자 요청 정렬(createdAt / word)을 추가
+     *        → 사용자 정렬이 없으면 createdAt DESC 를 기본값으로 사용
+     *      결과 예:
+     *        sort=createdAt,desc  →  [isFavorite DESC, createdAt DESC]  (기본)
+     *        sort=createdAt,asc   →  [isFavorite DESC, createdAt ASC]
+     *        sort=word,asc        →  [isFavorite DESC, word ASC]
+     *        sort 없음            →  [isFavorite DESC, createdAt DESC]
+     *
+     *   3. skipFavoriteSort = true 인 경우 (favorite=true 필터 사용 시):
+     *        → isFavorite DESC 삽입 생략 (결과가 이미 전부 즐겨찾기)
+     *        → 사용자 요청 정렬만 적용
+     * ─────────────────────────────────────────────────────────────────────────
+     *
+     * @param pageable          원본 Pageable (Controller에서 전달)
+     * @param skipFavoriteSort  true이면 isFavorite DESC 선행 삽입 생략
      */
-    private Pageable buildSafeVocabularyPageable(Pageable pageable) {
+    private Pageable buildSafeVocabularyPageable(Pageable pageable, boolean skipFavoriteSort) {
         Sort sort = pageable.getSort();
 
-        if (sort.isUnsorted()) {
-            return PageRequest.of(
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    Sort.by(Sort.Direction.DESC, "createdAt")
-            );
+        // 사용자 요청 정렬에서 허용 필드(createdAt, word)만 추출
+        // (isFavorite은 사용자가 직접 정렬 파라미터로 넘기는 필드가 아니므로 화이트리스트에서 제외)
+        List<Sort.Order> userOrders = new ArrayList<>();
+        if (sort.isSorted()) {
+            sort.stream()
+                    .filter(order -> isAllowedVocabSortField(order.getProperty()))
+                    .map(order -> order.isAscending()
+                            ? Sort.Order.asc(order.getProperty())
+                            : Sort.Order.desc(order.getProperty()))
+                    .forEach(userOrders::add);
         }
 
-        Sort safeSort = Sort.by(
-                sort.stream()
-                        .filter(order -> isAllowedVocabSortField(order.getProperty()))
-                        .map(order -> order.isAscending()
-                                ? Sort.Order.asc(order.getProperty())
-                                : Sort.Order.desc(order.getProperty()))
-                        .toList()
+        // 사용자 정렬이 비어있으면 기본값 createdAt DESC 사용
+        if (userOrders.isEmpty()) {
+            userOrders.add(Sort.Order.desc("createdAt"));
+        }
+
+        // 최종 정렬 조합
+        List<Sort.Order> finalOrders = new ArrayList<>();
+
+        if (!skipFavoriteSort) {
+            // isFavorite DESC 를 맨 앞에 고정
+            finalOrders.add(Sort.Order.desc("isFavorite"));
+        }
+
+        // 사용자 정렬을 그 뒤에 추가
+        finalOrders.addAll(userOrders);
+
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(finalOrders)
         );
-
-        if (safeSort.isUnsorted()) {
-            safeSort = Sort.by(Sort.Direction.DESC, "createdAt");
-        }
-
-        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), safeSort);
     }
 
+    /**
+     * skipFavoriteSort = false 로 고정하는 편의 오버로드
+     * (기존 getAll, getByStory 등에서 사용)
+     */
+    private Pageable buildSafeVocabularyPageable(Pageable pageable) {
+        return buildSafeVocabularyPageable(pageable, false);
+    }
+
+    /**
+     * 사용자가 sort 파라미터로 직접 지정할 수 있는 허용 필드
+     * - createdAt : 최신순 / 오래된순
+     * - word      : 가나다순
+     * (isFavorite은 Service 내부에서 자동 삽입하므로 사용자 입력 허용 안 함)
+     */
     private boolean isAllowedVocabSortField(String field) {
         return "createdAt".equals(field) || "word".equals(field);
     }
