@@ -48,7 +48,18 @@ public enum ErrorCode {
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "파일 업로드에 실패했습니다."),
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "파일을 찾을 수 없습니다."),
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "F003", "파일 크기가 제한을 초과했습니다."),
-    FILE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 삭제에 실패했습니다.");
+    FILE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 삭제에 실패했습니다."),
+
+    // 퀴즈 (Quiz)
+    QUIZ_NOT_FOUND(HttpStatus.NOT_FOUND, "Q001", "퀴즈를 찾을 수 없습니다."),
+    QUIZ_ALREADY_EXISTS(HttpStatus.CONFLICT, "Q002", "이미 생성된 퀴즈가 있습니다."),
+    QUIZ_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Q003", "퀴즈 생성에 실패했습니다."),
+    QUIZ_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Q004", "퀴즈에 접근할 권한이 없습니다."),
+    QUIZ_SUBMIT_INVALID(HttpStatus.BAD_REQUEST, "Q005", "퀴즈 답안이 올바르지 않습니다."),
+
+    // 꿀단지 (HoneyJar)
+    HONEY_JAR_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "꿀단지 정보를 찾을 수 없습니다."),
+    HONEY_JAR_INSUFFICIENT(HttpStatus.BAD_REQUEST, "H002", "꿀단지가 부족합니다.");
 
     private final HttpStatus status;
     private final String code;

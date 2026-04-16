@@ -61,6 +61,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/dictionary/*/bookmark").authenticated()    // 북마크 추가
                         .requestMatchers(HttpMethod.DELETE, "/api/dictionary/*/bookmark").authenticated()  // 북마크 제거
 
+                        // 퀴즈 API (인증 필요)
+                        .requestMatchers("/api/quiz/**").authenticated()
+
+                        // 꿀단지 API (인증 필요)
+                        .requestMatchers("/api/honey-jar/**").authenticated()
+
                         // ADMIN 권한 필요
                         .requestMatchers(HttpMethod.PATCH, "/api/dictionary/*/verify").hasRole("ADMIN")    // 방언 검증
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")                                 // 관리자 경로
