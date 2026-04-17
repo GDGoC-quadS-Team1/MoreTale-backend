@@ -91,36 +91,148 @@
         <form id="createForm" onsubmit="createProfile(event)">
             <div class="form-group">
                 <label for="createChildName">아이 이름 *</label>
-                <input type="text" id="createChildName" placeholder="예: 유찬" required>
+                <input type="text" id="createChildName" required>
             </div>
+
             <div class="form-group">
-                <label for="createChildAge">아이 나이 *</label>
-                <input type="number" id="createChildAge" min="1" max="18" placeholder="예: 8" required>
+                <label for="createAgeGroup">아이 나이 그룹 *</label>
+                <select id="createAgeGroup" required>
+                    <option value="AGE_0_2">0-2세</option>
+                    <option value="AGE_3_4">3-4세</option>
+                    <option value="AGE_5_6">5-6세</option>
+                    <option value="AGE_7_8">7-8세</option>
+                    <option value="AGE_9_10">9-10세</option>
+                    <option value="AGE_10_PLUS">10세 이상</option>
+                </select>
             </div>
+
             <div class="form-group">
                 <label for="createChildNationality">자녀 국적</label>
-                <input type="text" id="createChildNationality" placeholder="예: 대한민국">
+                <input type="text" id="createChildNationality" placeholder="예: KR">
             </div>
+
             <div class="form-group">
                 <label for="createParentCountry">부모 출신 국가 *</label>
-                <input type="text" id="createParentCountry" placeholder="예: 중국, 베트남" required>
+                <input type="text" id="createParentCountry" placeholder="예: KR" required>
             </div>
+
             <div class="form-group">
-                <label for="createPrimaryLanguage">기본 언어 *</label>
-                <select id="createPrimaryLanguage" required>
-                    <option value="ko">한국어 (ko)</option>
-                    <option value="en">영어 (en)</option>
+                <label for="createFirstLanguage">기본 언어 *</label>
+                <select id="createFirstLanguage" onchange="toggleCustomInput('createFirstLanguage', 'createCustomFirstLanguage')" required>
+                    <option value="KO">한국어</option>
+                    <option value="EN">영어</option>
+                    <option value="JA">일본어</option>
+                    <option value="ZH">중국어</option>
+                    <option value="ES">스페인어</option>
+                    <option value="VI">베트남어</option>
+                    <option value="OTHER">기타</option>
                 </select>
             </div>
+
+            <div class="form-group hidden" id="createCustomFirstLanguageWrapper">
+                <label for="createCustomFirstLanguage">기본 언어 직접 입력</label>
+                <input type="text" id="createCustomFirstLanguage" placeholder="예: 태국어">
+            </div>
+
             <div class="form-group">
-                <label for="createSecondaryLanguage">부모 언어 *</label>
-                <select id="createSecondaryLanguage" required>
-                    <option value="zh">중국어 (zh)</option>
-                    <option value="vi">베트남어 (vi)</option>
-                    <option value="en">영어 (en)</option>
-                    <option value="ja">일본어 (ja)</option>
+                <label for="createSecondLanguage">부모 언어 *</label>
+                <select id="createSecondLanguage" onchange="toggleCustomInput('createSecondLanguage', 'createCustomSecondLanguage')" required>
+                    <option value="KO">한국어</option>
+                    <option value="EN">영어</option>
+                    <option value="JA">일본어</option>
+                    <option value="ZH">중국어</option>
+                    <option value="ES">스페인어</option>
+                    <option value="VI">베트남어</option>
+                    <option value="OTHER">기타</option>
                 </select>
             </div>
+
+            <div class="form-group hidden" id="createCustomSecondLanguageWrapper">
+                <label for="createCustomSecondLanguage">부모 언어 직접 입력</label>
+                <input type="text" id="createCustomSecondLanguage" placeholder="예: 힌디어">
+            </div>
+
+            <div class="form-group">
+                <label for="createFirstLanguageProficiency">기본 언어 숙련도 *</label>
+                <select id="createFirstLanguageProficiency" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createSecondLanguageProficiency">부모 언어 숙련도 *</label>
+                <select id="createSecondLanguageProficiency" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createFirstLanguageListening">기본 언어 듣기 *</label>
+                <select id="createFirstLanguageListening" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createFirstLanguageSpeaking">기본 언어 말하기 *</label>
+                <select id="createFirstLanguageSpeaking" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createSecondLanguageListening">부모 언어 듣기 *</label>
+                <select id="createSecondLanguageListening" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createSecondLanguageSpeaking">부모 언어 말하기 *</label>
+                <select id="createSecondLanguageSpeaking" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createFamilyStructure">가족 구조 *</label>
+                <select id="createFamilyStructure" required>
+                    <option value="ONE_PARENT">한 분과 살아요</option>
+                    <option value="TWO_PARENTS">두 분과 살아요</option>
+                    <option value="EXTENDED_FAMILY">다른 가족과 살아요</option>
+                    <option value="SECRET">비밀이에요</option>
+                    <option value="CUSTOM">직접 작성해요</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="createStoryPreference">이야기 선호도 *</label>
+                <select id="createStoryPreference" required>
+                    <option value="WARM_HUG">포근포근 안아주는 이야기</option>
+                    <option value="FUN_ADVENTURE">신나는 모험 이야기</option>
+                    <option value="DAILY_LIFE">오늘 하루를 담은 이야기</option>
+                    <option value="CUSTOM">직접 적을래요</option>
+                </select>
+            </div>
+
             <button type="submit" class="btn-primary">등록하기</button>
             <div id="createStatus" class="status"></div>
         </form>
@@ -133,34 +245,146 @@
                 <label for="updateChildName">아이 이름 *</label>
                 <input type="text" id="updateChildName" required>
             </div>
+
             <div class="form-group">
-                <label for="updateChildAge">아이 나이 *</label>
-                <input type="number" id="updateChildAge" min="1" max="18" required>
+                <label for="updateAgeGroup">아이 나이 그룹 *</label>
+                <select id="updateAgeGroup" required>
+                    <option value="AGE_0_2">0-2세</option>
+                    <option value="AGE_3_4">3-4세</option>
+                    <option value="AGE_5_6">5-6세</option>
+                    <option value="AGE_7_8">7-8세</option>
+                    <option value="AGE_9_10">9-10세</option>
+                    <option value="AGE_10_PLUS">10세 이상</option>
+                </select>
             </div>
+
             <div class="form-group">
                 <label for="updateChildNationality">자녀 국적</label>
                 <input type="text" id="updateChildNationality">
             </div>
+
             <div class="form-group">
                 <label for="updateParentCountry">부모 출신 국가 *</label>
                 <input type="text" id="updateParentCountry" required>
             </div>
+
             <div class="form-group">
-                <label for="updatePrimaryLanguage">기본 언어 *</label>
-                <select id="updatePrimaryLanguage" required>
-                    <option value="ko">한국어 (ko)</option>
-                    <option value="en">영어 (en)</option>
+                <label for="updateFirstLanguage">기본 언어 *</label>
+                <select id="updateFirstLanguage" onchange="toggleCustomInput('updateFirstLanguage', 'updateCustomFirstLanguage')" required>
+                    <option value="KO">한국어</option>
+                    <option value="EN">영어</option>
+                    <option value="JA">일본어</option>
+                    <option value="ZH">중국어</option>
+                    <option value="ES">스페인어</option>
+                    <option value="VI">베트남어</option>
+                    <option value="OTHER">기타</option>
                 </select>
             </div>
+
+            <div class="form-group hidden" id="updateCustomFirstLanguageWrapper">
+                <label for="updateCustomFirstLanguage">기본 언어 직접 입력</label>
+                <input type="text" id="updateCustomFirstLanguage">
+            </div>
+
             <div class="form-group">
-                <label for="updateSecondaryLanguage">부모 언어 *</label>
-                <select id="updateSecondaryLanguage" required>
-                    <option value="zh">중국어 (zh)</option>
-                    <option value="vi">베트남어 (vi)</option>
-                    <option value="en">영어 (en)</option>
-                    <option value="ja">일본어 (ja)</option>
+                <label for="updateSecondLanguage">부모 언어 *</label>
+                <select id="updateSecondLanguage" onchange="toggleCustomInput('updateSecondLanguage', 'updateCustomSecondLanguage')" required>
+                    <option value="KO">한국어</option>
+                    <option value="EN">영어</option>
+                    <option value="JA">일본어</option>
+                    <option value="ZH">중국어</option>
+                    <option value="ES">스페인어</option>
+                    <option value="VI">베트남어</option>
+                    <option value="OTHER">기타</option>
                 </select>
             </div>
+
+            <div class="form-group hidden" id="updateCustomSecondLanguageWrapper">
+                <label for="updateCustomSecondLanguage">부모 언어 직접 입력</label>
+                <input type="text" id="updateCustomSecondLanguage">
+            </div>
+
+            <div class="form-group">
+                <label for="updateFirstLanguageProficiency">기본 언어 숙련도 *</label>
+                <select id="updateFirstLanguageProficiency" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateSecondLanguageProficiency">부모 언어 숙련도 *</label>
+                <select id="updateSecondLanguageProficiency" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateFirstLanguageListening">기본 언어 듣기 *</label>
+                <select id="updateFirstLanguageListening" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateFirstLanguageSpeaking">기본 언어 말하기 *</label>
+                <select id="updateFirstLanguageSpeaking" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateSecondLanguageListening">부모 언어 듣기 *</label>
+                <select id="updateSecondLanguageListening" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateSecondLanguageSpeaking">부모 언어 말하기 *</label>
+                <select id="updateSecondLanguageSpeaking" required>
+                    <option value="EGG">알</option>
+                    <option value="LARVA">애벌레</option>
+                    <option value="PUPA">번데기</option>
+                    <option value="BEE">꿀벌</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateFamilyStructure">가족 구조 *</label>
+                <select id="updateFamilyStructure" required>
+                    <option value="ONE_PARENT">한 분과 살아요</option>
+                    <option value="TWO_PARENTS">두 분과 살아요</option>
+                    <option value="EXTENDED_FAMILY">다른 가족과 살아요</option>
+                    <option value="SECRET">비밀이에요</option>
+                    <option value="CUSTOM">직접 작성해요</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="updateStoryPreference">이야기 선호도 *</label>
+                <select id="updateStoryPreference" required>
+                    <option value="WARM_HUG">포근포근 안아주는 이야기</option>
+                    <option value="FUN_ADVENTURE">신나는 모험 이야기</option>
+                    <option value="DAILY_LIFE">오늘 하루를 담은 이야기</option>
+                    <option value="CUSTOM">직접 적을래요</option>
+                </select>
+            </div>
+
             <button type="submit" class="btn-primary">정보 업데이트</button>
             <button type="button" class="btn-secondary" onclick="showTab('view')">취소</button>
             <div id="updateStatus" class="status"></div>
@@ -205,8 +429,23 @@
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById('btn-' + tabName).classList.add('active');
 
-        if(tabName !== 'update') {
+        if (tabName !== 'update') {
             document.getElementById('btn-update').style.display = 'none';
+        }
+    }
+
+    function toggleCustomInput(selectId, inputId) {
+        const select = document.getElementById(selectId);
+        const wrapper = document.getElementById(inputId + 'Wrapper');
+        const input = document.getElementById(inputId);
+
+        if (select.value === 'OTHER') {
+            wrapper.classList.remove('hidden');
+            input.required = true;
+        } else {
+            wrapper.classList.add('hidden');
+            input.required = false;
+            input.value = '';
         }
     }
 
@@ -219,10 +458,11 @@
             if (result.success) {
                 document.getElementById('userEmail').textContent = result.data.email;
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    // 1:N 목록 조회 로직
     async function loadProfile() {
         const profileList = document.getElementById('profileList');
         const emptyProfile = document.getElementById('emptyProfile');
@@ -240,21 +480,25 @@
 
             if (result.success && result.data.length > 0) {
                 profileList.innerHTML = '';
+
                 result.data.forEach(p => {
                     profileList.innerHTML += `
                         <div class="profile-item">
                             <p><strong>아이 이름</strong><span>${p.childName}</span></p>
                             <p><strong>나이</strong><span>${p.childAge}세</span></p>
-                            <p><strong>부모 언어</strong><span>${p.secondaryLanguage}</span></p>
+                            <p><strong>기본 언어</strong><span>${p.firstLanguageDisplay ?? '-'}</span></p>
+                            <p><strong>부모 언어</strong><span>${p.secondLanguageDisplay ?? '-'}</span></p>
                             <button class="btn-edit" onclick="prepareUpdate(${p.profileId})">✏️ 수정하기</button>
                         </div>
                     `;
                 });
+
                 profileList.classList.remove('hidden');
             } else {
                 emptyProfile.classList.remove('hidden');
             }
         } catch (e) {
+            console.error(e);
             emptyProfile.classList.remove('hidden');
         } finally {
             loading.style.display = 'none';
@@ -263,83 +507,162 @@
 
     async function createProfile(event) {
         event.preventDefault();
+
         const data = {
             childName: document.getElementById('createChildName').value,
-            childAge: parseInt(document.getElementById('createChildAge').value),
+            ageGroup: document.getElementById('createAgeGroup').value,
+            firstLanguage: document.getElementById('createFirstLanguage').value,
+            customFirstLanguage: document.getElementById('createCustomFirstLanguage').value || null,
+            firstLanguageProficiency: document.getElementById('createFirstLanguageProficiency').value,
+            secondLanguage: document.getElementById('createSecondLanguage').value,
+            customSecondLanguage: document.getElementById('createCustomSecondLanguage').value || null,
+            secondLanguageProficiency: document.getElementById('createSecondLanguageProficiency').value,
+            firstLanguageListening: document.getElementById('createFirstLanguageListening').value,
+            firstLanguageSpeaking: document.getElementById('createFirstLanguageSpeaking').value,
+            secondLanguageListening: document.getElementById('createSecondLanguageListening').value,
+            secondLanguageSpeaking: document.getElementById('createSecondLanguageSpeaking').value,
+            familyStructure: document.getElementById('createFamilyStructure').value,
+            customFamilyStructure: null,
+            storyPreference: document.getElementById('createStoryPreference').value,
+            customStoryPreference: null,
             childNationality: document.getElementById('createChildNationality').value || null,
-            parentCountry: document.getElementById('createParentCountry').value,
-            primaryLanguage: document.getElementById('createPrimaryLanguage').value,
-            secondaryLanguage: document.getElementById('createSecondaryLanguage').value
+            parentCountry: document.getElementById('createParentCountry').value
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/users/profile`, {
+            const response = await fetch(`${API_BASE_URL}/users/profile/onboarding`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(data)
             });
+
             const result = await response.json();
+
             if (result.success) {
                 showStatus('createStatus', '✅ 등록 성공!', 'success');
-                setTimeout(() => { document.getElementById('createForm').reset(); showTab('view'); loadProfile(); }, 1000);
+                setTimeout(() => {
+                    document.getElementById('createForm').reset();
+                    document.getElementById('createCustomFirstLanguageWrapper').classList.add('hidden');
+                    document.getElementById('createCustomSecondLanguageWrapper').classList.add('hidden');
+                    showTab('view');
+                    loadProfile();
+                }, 1000);
             } else {
                 showStatus('createStatus', '❌ ' + result.message, 'error');
             }
-        } catch (e) { showStatus('createStatus', '❌ 오류 발생', 'error'); }
+        } catch (e) {
+            console.error(e);
+            showStatus('createStatus', '❌ 오류 발생', 'error');
+        }
     }
 
     async function prepareUpdate(profileId) {
         editingProfileId = profileId;
+
         try {
             const response = await fetch(`${API_BASE_URL}/users/profile/${profileId}`, {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             });
+
             const result = await response.json();
+
             if (result.success) {
                 const p = result.data;
-                document.getElementById('updateChildName').value = p.childName;
-                document.getElementById('updateChildAge').value = p.childAge;
-                document.getElementById('updateChildNationality').value = p.childNationality || '';
-                document.getElementById('updateParentCountry').value = p.parentCountry;
-                document.getElementById('updatePrimaryLanguage').value = p.primaryLanguage;
-                document.getElementById('updateSecondaryLanguage').value = p.secondaryLanguage;
+
+                document.getElementById('updateChildName').value = p.childName ?? '';
+                document.getElementById('updateAgeGroup').value = p.ageGroup ?? 'AGE_5_6';
+                document.getElementById('updateChildNationality').value = p.childNationality ?? '';
+                document.getElementById('updateParentCountry').value = p.parentCountry ?? '';
+
+                document.getElementById('updateFirstLanguage').value = p.firstLanguage ?? 'KO';
+                document.getElementById('updateCustomFirstLanguage').value = p.customFirstLanguage ?? '';
+                toggleCustomInput('updateFirstLanguage', 'updateCustomFirstLanguage');
+
+                document.getElementById('updateSecondLanguage').value = p.secondLanguage ?? 'EN';
+                document.getElementById('updateCustomSecondLanguage').value = p.customSecondLanguage ?? '';
+                toggleCustomInput('updateSecondLanguage', 'updateCustomSecondLanguage');
+
+                document.getElementById('updateFirstLanguageProficiency').value = p.firstLanguageProficiency ?? 'LARVA';
+                document.getElementById('updateSecondLanguageProficiency').value = p.secondLanguageProficiency ?? 'LARVA';
+                document.getElementById('updateFirstLanguageListening').value = p.firstLanguageListening ?? 'LARVA';
+                document.getElementById('updateFirstLanguageSpeaking').value = p.firstLanguageSpeaking ?? 'LARVA';
+                document.getElementById('updateSecondLanguageListening').value = p.secondLanguageListening ?? 'LARVA';
+                document.getElementById('updateSecondLanguageSpeaking').value = p.secondLanguageSpeaking ?? 'LARVA';
+                document.getElementById('updateFamilyStructure').value = p.familyStructure ?? 'TWO_PARENTS';
+                document.getElementById('updateStoryPreference').value = p.storyPreference ?? 'DAILY_LIFE';
 
                 document.getElementById('btn-update').style.display = 'block';
                 showTab('update');
             }
-        } catch (e) { alert("정보를 불러오지 못했습니다."); }
+        } catch (e) {
+            console.error(e);
+            alert('정보를 불러오지 못했습니다.');
+        }
     }
 
     async function updateProfile(event) {
         event.preventDefault();
+
         const data = {
             childName: document.getElementById('updateChildName').value,
-            childAge: parseInt(document.getElementById('updateChildAge').value),
+            ageGroup: document.getElementById('updateAgeGroup').value,
+            firstLanguage: document.getElementById('updateFirstLanguage').value,
+            customFirstLanguage: document.getElementById('updateCustomFirstLanguage').value || null,
+            firstLanguageProficiency: document.getElementById('updateFirstLanguageProficiency').value,
+            secondLanguage: document.getElementById('updateSecondLanguage').value,
+            customSecondLanguage: document.getElementById('updateCustomSecondLanguage').value || null,
+            secondLanguageProficiency: document.getElementById('updateSecondLanguageProficiency').value,
+            firstLanguageListening: document.getElementById('updateFirstLanguageListening').value,
+            firstLanguageSpeaking: document.getElementById('updateFirstLanguageSpeaking').value,
+            secondLanguageListening: document.getElementById('updateSecondLanguageListening').value,
+            secondLanguageSpeaking: document.getElementById('updateSecondLanguageSpeaking').value,
+            familyStructure: document.getElementById('updateFamilyStructure').value,
+            customFamilyStructure: null,
+            storyPreference: document.getElementById('updateStoryPreference').value,
+            customStoryPreference: null,
             childNationality: document.getElementById('updateChildNationality').value || null,
-            parentCountry: document.getElementById('updateParentCountry').value,
-            primaryLanguage: document.getElementById('updatePrimaryLanguage').value,
-            secondaryLanguage: document.getElementById('updateSecondaryLanguage').value
+            parentCountry: document.getElementById('updateParentCountry').value
         };
 
         try {
             const response = await fetch(`${API_BASE_URL}/users/profile/${editingProfileId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(data)
             });
+
             const result = await response.json();
+
             if (result.success) {
                 showStatus('updateStatus', '✅ 수정 완료!', 'success');
-                setTimeout(() => { showTab('view'); loadProfile(); }, 1000);
+                setTimeout(() => {
+                    showTab('view');
+                    loadProfile();
+                }, 1000);
+            } else {
+                showStatus('updateStatus', '❌ ' + result.message, 'error');
             }
-        } catch (e) { showStatus('updateStatus', '❌ 수정 실패', 'error'); }
+        } catch (e) {
+            console.error(e);
+            showStatus('updateStatus', '❌ 수정 실패', 'error');
+        }
     }
 
     function showStatus(id, msg, type) {
         const s = document.getElementById(id);
         s.textContent = msg;
         s.className = `status ${type}`;
-        setTimeout(() => s.style.display = 'none', 3000);
+        s.style.display = 'block';
+
+        setTimeout(() => {
+            s.style.display = 'none';
+        }, 3000);
     }
 
     function logout() {

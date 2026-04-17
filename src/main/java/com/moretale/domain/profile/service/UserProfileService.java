@@ -1,6 +1,7 @@
 package com.moretale.domain.profile.service;
 
 import com.moretale.domain.profile.dto.*;
+import com.moretale.domain.profile.entity.Language;
 import com.moretale.domain.profile.entity.UserProfile;
 import com.moretale.domain.profile.repository.UserProfileRepository;
 import com.moretale.domain.user.entity.User;
@@ -37,32 +38,46 @@ public class UserProfileService {
             throw new CustomException(ErrorCode.PROFILE_ALREADY_EXISTS);
         }
 
+        // OTHER가 아닌 경우 customLanguage는 null 처리 (Entity에서도 처리하지만 명시적으로)
+        String customFirst = (request.getFirstLanguage() == Language.OTHER)
+                ? request.getCustomFirstLanguage() : null;
+        String customSecond = (request.getSecondLanguage() == Language.OTHER)
+                ? request.getCustomSecondLanguage() : null;
+
         UserProfile profile = UserProfile.builder()
                 .user(user)
                 .childName(request.getChildName())
                 .ageGroup(request.getAgeGroup())
+                // 언어 (Enum + Custom)
                 .firstLanguage(request.getFirstLanguage())
+                .customFirstLanguage(customFirst)
                 .firstLanguageProficiency(request.getFirstLanguageProficiency())
                 .secondLanguage(request.getSecondLanguage())
+                .customSecondLanguage(customSecond)
                 .secondLanguageProficiency(request.getSecondLanguageProficiency())
+                // 능력
                 .firstLanguageListening(request.getFirstLanguageListening())
                 .firstLanguageSpeaking(request.getFirstLanguageSpeaking())
                 .secondLanguageListening(request.getSecondLanguageListening())
                 .secondLanguageSpeaking(request.getSecondLanguageSpeaking())
+                // 가족/이야기
                 .familyStructure(request.getFamilyStructure())
                 .customFamilyStructure(request.getCustomFamilyStructure())
                 .storyPreference(request.getStoryPreference())
                 .customStoryPreference(request.getCustomStoryPreference())
+                // 부가
                 .childNationality(request.getChildNationality())
                 .parentCountry(request.getParentCountry())
                 .build();
 
-        // 하위 호환성 유지 (primary/secondaryLanguage 세팅)
+        // Legacy primaryLanguage / secondaryLanguage 동기화
         profile.syncLegacyLanguages();
 
         UserProfile savedProfile = userProfileRepository.save(profile);
-        log.info("온보딩 프로필 생성 완료 - profileId: {}, childName: {}",
-                savedProfile.getProfileId(), savedProfile.getChildName());
+        log.info("온보딩 프로필 생성 완료 - profileId: {}, firstLanguage: {}, secondLanguage: {}",
+                savedProfile.getProfileId(),
+                savedProfile.getFirstLanguageDisplay(),
+                savedProfile.getSecondLanguageDisplay());
 
         return OnboardingProfileResponse.fromEntity(savedProfile);
     }
@@ -80,13 +95,20 @@ public class UserProfileService {
             throw new CustomException(ErrorCode.PROFILE_ALREADY_EXISTS);
         }
 
+        String customFirst = (request.getFirstLanguage() == Language.OTHER)
+                ? request.getCustomFirstLanguage() : null;
+        String customSecond = (request.getSecondLanguage() == Language.OTHER)
+                ? request.getCustomSecondLanguage() : null;
+
         UserProfile profile = UserProfile.builder()
                 .user(user)
                 .childName(request.getChildName())
                 .ageGroup(request.getAgeGroup())
                 .firstLanguage(request.getFirstLanguage())
+                .customFirstLanguage(customFirst)
                 .firstLanguageProficiency(request.getFirstLanguageProficiency())
                 .secondLanguage(request.getSecondLanguage())
+                .customSecondLanguage(customSecond)
                 .secondLanguageProficiency(request.getSecondLanguageProficiency())
                 .firstLanguageListening(request.getFirstLanguageListening())
                 .firstLanguageSpeaking(request.getFirstLanguageSpeaking())
@@ -132,8 +154,7 @@ public class UserProfileService {
     public UserProfileResponse updateProfile(Long userId, Long profileId, UserProfileRequest request) {
         log.info("프로필 수정 시작 - userId: {}, profileId: {}", userId, profileId);
 
-        // 사용자 존재 확인
-        User user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 프로필 존재 확인
@@ -150,8 +171,10 @@ public class UserProfileService {
                 request.getChildName(),
                 request.getAgeGroup(),
                 request.getFirstLanguage(),
+                request.getCustomFirstLanguage(),
                 request.getFirstLanguageProficiency(),
                 request.getSecondLanguage(),
+                request.getCustomSecondLanguage(),
                 request.getSecondLanguageProficiency(),
                 request.getFirstLanguageListening(),
                 request.getFirstLanguageSpeaking(),
@@ -165,8 +188,7 @@ public class UserProfileService {
                 request.getParentCountry()
         );
 
-        log.info("프로필 수정 완료 - profileId: {}, childName: {}", profile.getProfileId(), profile.getChildName());
-
+        log.info("프로필 수정 완료 - profileId: {}", profile.getProfileId());
         return UserProfileResponse.fromEntity(profile);
     }
 
@@ -175,11 +197,29 @@ public class UserProfileService {
     public UserProfileResponse updateLanguage(Long profileId, LanguageUpdateRequest request) {
         log.info("언어 설정 수정 - profileId: {}", profileId);
 
+        // LanguageUpdateRequest 자체 검증 (OTHER + custom 누락 체크)
+        request.validate();
+
         UserProfile profile = userProfileRepository.findById(profileId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PROFILE_NOT_FOUND));
 
-        profile.setPrimaryLanguage(request.getPrimaryLanguage());
-        profile.setSecondaryLanguage(request.getSecondaryLanguage());
+        // Enum 기반으로 언어 업데이트
+        profile.setFirstLanguage(request.getFirstLanguage());
+        profile.setCustomFirstLanguage(
+                request.getFirstLanguage() == Language.OTHER ? request.getCustomFirstLanguage() : null
+        );
+        profile.setSecondLanguage(request.getSecondLanguage());
+        profile.setCustomSecondLanguage(
+                request.getSecondLanguage() == Language.OTHER ? request.getCustomSecondLanguage() : null
+        );
+
+        // Legacy 동기화
+        profile.syncLegacyLanguages();
+
+        log.info("언어 설정 수정 완료 - profileId: {}, first: {}, second: {}",
+                profileId,
+                profile.getFirstLanguageDisplay(),
+                profile.getSecondLanguageDisplay());
 
         return UserProfileResponse.fromEntity(profile);
     }
