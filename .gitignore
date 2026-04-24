@@ -22,3 +22,6 @@ Thumbs.db
 
 # 환경 파일
 .env
+
+# Copilot local config
+.github/copilot-instructions.md
