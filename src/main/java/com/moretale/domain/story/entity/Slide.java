@@ -2,6 +2,7 @@ package com.moretale.domain.story.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,15 @@ public class Slide {
     @Column(name = "audio_url_native", length = 500)
     private String audioUrlNative;
 
-    // 토큰 연관관계
+    /**
+     * 토큰 연관관계
+     *
+     * @BatchSize(size = 50):
+     *   슬라이드가 N개일 때 tokens를 N번 SELECT하는 대신,
+     *   IN (:slideId1, :slideId2, ...) 방식으로 최대 50개씩 묶어 조회
+     *   -> N+1 쿼리를 ceil(N/50)회로 대폭 감소
+     */
+    @BatchSize(size = 50)
     @OneToMany(mappedBy = "slide", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("tokenOrder ASC")
     @Builder.Default

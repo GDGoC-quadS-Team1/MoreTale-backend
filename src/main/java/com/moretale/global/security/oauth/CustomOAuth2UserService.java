@@ -28,15 +28,27 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         Map<String, Object> attributes = oauth2User.getAttributes();
 
-        log.info("OAuth2 Login - Provider: {}, Attributes: {}", registrationId, attributes);
+        // attributes 전체 출력 제거 -> provider만 로깅 (민감정보 보호)
+        log.info("OAuth2 Login - provider={}", registrationId);
 
         // Google에서 받은 정보 추출
         String providerId = oauth2User.getAttribute("sub");
         String email = oauth2User.getAttribute("email");
         String name = oauth2User.getAttribute("name");
 
-        // 사용자 조회 또는 생성
+        // email null 체크 (OAuth2 제공자가 이메일을 반환하지 않는 경우 방어)
+        if (email == null) {
+            log.warn("OAuth2 로그인 실패 - provider={}에서 이메일을 제공하지 않음", registrationId);
+            throw new OAuth2AuthenticationException("EMAIL_NOT_PROVIDED");
+        }
+
         User user = userRepository.findByProviderAndProviderId(registrationId, providerId)
+                .map(existingUser -> {
+                    // 기존 사용자 로그 - 이메일 마스킹 처리
+                    log.info("OAuth2 기존 사용자 로그인 - provider={}, userId={}",
+                            registrationId, existingUser.getUserId());
+                    return existingUser;
+                })
                 .orElseGet(() -> createUser(registrationId, providerId, email, name));
 
         return new CustomOAuth2User(user, attributes);
@@ -51,7 +63,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .role(User.Role.USER)
                 .build();
 
-        log.info("Creating new user: {}", email);
+        // 신규 사용자 생성 시 email 직접 노출 제거
+        log.info("OAuth2 신규 사용자 생성 - provider={}", provider);
         return userRepository.save(newUser);
     }
 }
