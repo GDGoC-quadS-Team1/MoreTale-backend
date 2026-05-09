@@ -15,7 +15,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -25,7 +24,7 @@ import java.util.Map;
 
 // 개발 및 테스트용 인증 필터
 // 모든 요청에 대해 'test@example.com' 사용자로 자동 인증을 수행
-//DB에 해당 사용자와 기본 프로필이 없으면 자동으로 생성
+// DB에 해당 사용자와 기본 프로필이 없으면 자동으로 생성
 @Slf4j
 // @Component // 개발/테스트용이라 필요할 때만 활성화
 @RequiredArgsConstructor
@@ -57,14 +56,13 @@ public class TestAuthenticationFilter extends OncePerRequestFilter {
                         User newUser = User.builder()
                                 .email(testEmail)
                                 .nickname("테스트사용자")
-                                .region("서울")
                                 .role(User.Role.USER)
                                 .build();
                         log.info("✅ 테스트 사용자 자동 생성 완료 - email: {}", testEmail);
                         return userRepository.save(newUser);
                     });
 
-            // 3. 테스트용 프로필 조회 및 자동 생성 (핵심: 소유권 문제 해결)
+            // 3. 테스트용 프로필 조회 및 자동 생성
             if (!userProfileRepository.existsByUser(testUser)) {
                 UserProfile testProfile = UserProfile.builder()
                         .user(testUser)
