@@ -1,18 +1,22 @@
 package com.moretale.global.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moretale.global.common.ApiResponse;
 import com.moretale.global.security.jwt.JwtAuthenticationFilter;
 import com.moretale.global.security.oauth.CustomOAuth2UserService;
 import com.moretale.global.security.oauth.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebSecurity
@@ -22,6 +26,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -43,73 +48,93 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+
+                                // Spring Boot 기본 에러 페이지
+                                "/error"
                         ).permitAll()
 
-                        // 공개 API
-                        .requestMatchers("/api/translate/**").permitAll()                                  // AI 사투리 도사 API
-                        .requestMatchers(HttpMethod.GET, "/api/dictionary/**").permitAll()                 // 방언 사전 조회는 비회원 가능
-                        .requestMatchers("/error").permitAll()                                             // Spring Boot 에러 페이지
-
-                        // TTS API 테스트용 (개발 환경에서만 permitAll, 운영에서는 authenticated로 변경)
-                        .requestMatchers("/api/tts/**").permitAll()                                        // TTS API 테스트
-
-                        // 업로드된 파일 접근 허용 (TTS 오디오 파일 다운로드용)
+                        // 생성된 오디오 파일 접근 (공개 동화 재생 등)
                         .requestMatchers("/uploads/**").permitAll()
 
-                        // 동화 생성 API (인증 필요)
+                        // ── 인증 필요 API ────────────────────────────────────────
+
+                        // 사용자 계정 & 프로필
+                        .requestMatchers("/api/users/**").authenticated()
+
+                        // 동화 관리
                         .requestMatchers("/api/stories/**").authenticated()
 
-                        // 단어장 API (인증 필요)
+                        // 도서관
+                        .requestMatchers("/api/library/**").authenticated()
+
+                        // TTS 생성 API (AI 비용 발생 → 인증 필수)
+                        .requestMatchers("/api/tts/**").authenticated()
+
+                        // 단어장
                         .requestMatchers("/api/vocabulary/**").authenticated()
 
-                        // 로그인 필요
-                        .requestMatchers(HttpMethod.POST, "/api/dictionary/*/bookmark").authenticated()    // 북마크 추가
-                        .requestMatchers(HttpMethod.DELETE, "/api/dictionary/*/bookmark").authenticated()  // 북마크 제거
-
-                        // 퀴즈 API (인증 필요)
+                        // 퀴즈 & 꿀단지
                         .requestMatchers("/api/quiz/**").authenticated()
-
-                        // 꿀단지 API (인증 필요)
                         .requestMatchers("/api/honey-jar/**").authenticated()
 
-                        // 마이페이지 & 회원 탈퇴 (인증 필요)
-                        .requestMatchers(HttpMethod.GET, "/api/users/mypage").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/users/delete").authenticated()
+                        // ADMIN 전용
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // ADMIN 권한 필요
-                        .requestMatchers(HttpMethod.PATCH, "/api/dictionary/*/verify").hasRole("ADMIN")    // 방언 검증
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")                                 // 관리자 경로
-
-                        // 그 외 모든 요청은 인증 필요
+                        // ── 그 외 모든 요청은 인증 필요 ─────────────────────────
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo ->
                                 userInfo.userService(customOAuth2UserService)
                         )
-                        .successHandler(oAuth2AuthenticationSuccessHandler) // 로그인 성공 시 JWT 발급
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
                 .exceptionHandling(exceptions -> exceptions
-                        // 인증 실패 시
+
+                        // 401 - 인증되지 않은 요청
                         .authenticationEntryPoint((req, res, ex) -> {
                             if (req.getRequestURI().startsWith("/api/")) {
+
+                                ApiResponse<Void> body = ApiResponse.error(
+                                        "UNAUTHORIZED",
+                                        "인증이 필요합니다. 로그인 후 다시 시도해주세요."
+                                );
+
                                 res.setStatus(401);
-                                res.setContentType("application/json");
-                                res.getWriter().write("{\"message\": \"Unauthorized\"}");
+                                res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                                res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+                                res.getWriter().write(
+                                        objectMapper.writeValueAsString(body)
+                                );
+
                             } else {
                                 res.sendRedirect("/oauth2/authorization/google");
                             }
                         })
 
-                        // 권한 부족 (ex. 일반 사용자가 관리자 API 접근)
+                        // 403 - 권한 부족
                         .accessDeniedHandler((req, res, ex) -> {
+
+                            ApiResponse<Void> body = ApiResponse.error(
+                                    "FORBIDDEN",
+                                    "접근 권한이 없습니다. 관리자 권한이 필요합니다."
+                            );
+
                             res.setStatus(403);
-                            res.setContentType("application/json");
-                            res.getWriter().write("{\"message\": \"Forbidden: 관리자 권한 필요\"}");
+                            res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+                            res.getWriter().write(
+                                    objectMapper.writeValueAsString(body)
+                            );
                         })
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
