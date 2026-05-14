@@ -46,10 +46,9 @@ public class Slide {
     /**
      * 토큰 연관관계
      *
-     * @BatchSize(size = 50):
-     *   슬라이드가 N개일 때 tokens를 N번 SELECT하는 대신,
-     *   IN (:slideId1, :slideId2, ...) 방식으로 최대 50개씩 묶어 조회
-     *   -> N+1 쿼리를 ceil(N/50)회로 대폭 감소
+     * CascadeType.ALL: Slide 저장 시 연결된 StoryToken도 함께 저장됨.
+     * orphanRemoval = true: 컬렉션에서 제거된 Token은 자동 삭제됨.
+     * @BatchSize(size = 50): tokens 조회 시 IN 절 배치 조회로 N+1 완화
      */
     @BatchSize(size = 50)
     @OneToMany(mappedBy = "slide", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -57,9 +56,17 @@ public class Slide {
     @Builder.Default
     private List<StoryToken> tokens = new ArrayList<>();
 
-    // 편의 메서드
+    // 토큰 연관관계 편의 메서드
+    // token.slide 설정을 통해 Slide와 연결되며, CascadeType.ALL에 의해 자동 저장됨.
     public void addToken(StoryToken token) {
         tokens.add(token);
         token.setSlide(this);
+    }
+
+    // 토큰 연관관계 해제 편의 메서드
+    // orphanRemoval = true 이므로 컬렉션에서 제거 시 자동 DELETE
+    public void removeToken(StoryToken token) {
+        tokens.remove(token);
+        token.setSlide(null);
     }
 }
