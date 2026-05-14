@@ -12,21 +12,25 @@ import java.util.List;
 /**
  * 동화 엔티티
  *
- * ── 삭제 cascade 흐름 ────────────────────────────────────────────────
- * storyRepository.delete(story) 호출 시:
+ * ── 저장 cascade 흐름 ────────────────────────────────────────────────────────
+ *   storyRepository.save(story) 호출 시:
+ *     Story INSERT → Slide INSERT (CascadeType.ALL)
+ *   em.flush() 후 slide.addToken(token) 호출 시:
+ *     트랜잭션 커밋 → StoryToken INSERT (Slide.tokens CascadeType.ALL)
  *
- * [JPA 레벨]
- *   Story
- *    └── Slide           (CascadeType.ALL + orphanRemoval)
- *          └── StoryToken (CascadeType.ALL + orphanRemoval)
+ * ── 삭제 cascade 흐름 ────────────────────────────────────────────────────────
+ *   storyRepository.delete(story) 호출 시:
  *
- * [DB 레벨 - @OnDelete(CASCADE)]
- *   Story 삭제 → VocabularyEntry 자동 삭제
- *   Slide  삭제 → VocabularyEntry 자동 삭제 (slide_id FK)
- *   StoryToken 삭제 → VocabularyEntry 자동 삭제 (token_id FK)
+ *   [JPA 레벨]
+ *     Story
+ *      └── Slide           (CascadeType.ALL + orphanRemoval)
+ *            └── StoryToken (CascadeType.ALL + orphanRemoval)
  *
- * 결과: Story 삭제 한 번으로 관련 모든 데이터 정리됨
- * ─────────────────────────────────────────────────────────────────────
+ *   [DB 레벨 - @OnDelete(CASCADE)]
+ *     Story 삭제 → VocabularyEntry 자동 삭제
+ *     Slide 삭제 → VocabularyEntry 자동 삭제 (slide_id FK)
+ *     StoryToken 삭제 → VocabularyEntry 자동 삭제 (token_id FK)
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 @Entity
 @Table(name = "stories")
@@ -71,8 +75,13 @@ public class Story {
 
     /**
      * 슬라이드 목록
-     * - CascadeType.ALL: Story 저장/삭제 시 Slide도 함께 저장/삭제
-     * - orphanRemoval: Story에서 제거된 Slide는 자동 삭제
+     *
+     * CascadeType.ALL:
+     *   storyRepository.save(story) 만으로 모든 Slide도 함께 저장됨.
+     *   slideRepository.saveAll() 별도 호출 불필요.
+     *
+     * orphanRemoval = true:
+     *   slides 컬렉션에서 제거된 Slide는 자동으로 DELETE됨.
      */
     @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("order ASC")
