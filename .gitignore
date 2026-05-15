@@ -22,6 +22,11 @@ Thumbs.db
 
 # 환경 파일
 .env
+application-local.yml
+
+# Google Cloud Credentials
+gcp-service-account.json
+**/gcp-service-account.json
 
 # Copilot local config
 .github/copilot-instructions.md
