@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -22,10 +23,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final JwtTokenProvider jwtTokenProvider;
     private final UserProfileRepository userProfileRepository;
 
-    // 프론트엔드 URL
-    private static final String FRONTEND_URL = "http://localhost:8080";
-    private static final String ONBOARDING_PATH = "/onboarding"; // 온보딩 페이지 경로
-    private static final String HOME_PATH = "/"; // 메인 홈 페이지 경로
+    @Value("${app.frontend-url:http://localhost:8080}")
+    private String frontendUrl;
+
+    private static final String ONBOARDING_PATH = "/onboarding";
+    private static final String HOME_PATH = "/";
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -42,7 +44,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String token = jwtTokenProvider.generateTokenFromUserId(userId);
 
         log.info("OAuth2 로그인 성공 - userId: {}, email: {}", userId, email);
-        log.info("JWT Token 생성 완료: {}", token);
+        log.info("JWT Token 생성 완료");
 
         // 3. 프로필 존재 여부 확인
         boolean hasProfile = userProfileRepository.existsByUser_UserId(userId);
@@ -60,7 +62,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         }
 
         // 5. 리다이렉트 URL 생성 (token, userId, hasProfile 전달)
-        String targetUrl = UriComponentsBuilder.fromUriString(FRONTEND_URL + redirectPath)
+        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + redirectPath)
                 .queryParam("token", token)
                 .queryParam("userId", userId)
                 .queryParam("hasProfile", hasProfile)
