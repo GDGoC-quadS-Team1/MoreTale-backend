@@ -7,6 +7,7 @@ import com.moretale.global.security.jwt.JwtAuthenticationFilter;
 import com.moretale.global.security.oauth.CustomOAuth2UserService;
 import com.moretale.global.security.oauth.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -170,7 +171,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(CorsConfigurationSource corsConfigurationSource) {
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(
+            @Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfigurationSource
+    ) {
         FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new CorsFilter(corsConfigurationSource));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
