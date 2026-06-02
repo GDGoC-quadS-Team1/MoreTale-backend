@@ -67,7 +67,7 @@
 
 <div align="center">
 
-<h4>Java 21 | Spring | Gradle | PostgreSQL | Swagger | Docker | Google Cloud</h4>
+<h4>Java 21 | Spring | Gradle | PostgreSQL | Swagger | Docker | Google Cloud Platform</h4>
 
 </div>
 
