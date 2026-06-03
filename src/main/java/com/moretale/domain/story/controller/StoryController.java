@@ -147,6 +147,18 @@ public class StoryController {
     ) {
         log.info("동화 저장 요청 - userId={}, title={}",
                 userPrincipal.getUserId(), request.getTitle());
+
+        log.info("동화 저장 요청 slidesSize={}",
+                request.getSlides() != null ? request.getSlides().size() : 0);
+
+        if (request.getSlides() != null) {
+            request.getSlides().forEach(slide -> {
+                log.info("저장 요청 slide - order={}, vocabulary={}",
+                        slide.getOrder(),
+                        slide.getVocabulary());
+            });
+        }
+
         return ApiResponse.success(
                 storyService.saveStory(userPrincipal.getUserId(), request),
                 "동화 저장 완료"

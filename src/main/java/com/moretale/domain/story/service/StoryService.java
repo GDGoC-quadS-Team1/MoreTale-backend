@@ -181,6 +181,17 @@ public class StoryService {
         List<StorySaveRequest.SlideRequest> slideRequests =
                 request.getSlides() != null ? request.getSlides() : List.of();
 
+        for (int i = 0; i < slideRequests.size(); i++) {
+            StorySaveRequest.SlideRequest s = slideRequests.get(i);
+
+            log.info(
+                    "[saveStory] vocabulary 원본 확인 - index={}, order={}, vocabulary={}",
+                    i,
+                    s.getOrder(),
+                    s.getVocabulary()
+            );
+        }
+
         log.info("[saveStory] 슬라이드 수신 - storyTitle={}, totalSlides={}",
                 request.getTitle(), slideRequests.size());
 
