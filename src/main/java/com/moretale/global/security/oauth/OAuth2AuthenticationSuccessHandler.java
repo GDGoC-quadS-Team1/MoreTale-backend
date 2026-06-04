@@ -45,6 +45,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         log.info("OAuth2 로그인 성공 - userId: {}, email: {}", userId, email);
         log.info("JWT Token 생성 완료");
+        log.info("JWT Token: {}", token);
 
         // 3. 프로필 존재 여부 확인
         boolean hasProfile = userProfileRepository.existsByUser_UserId(userId);
