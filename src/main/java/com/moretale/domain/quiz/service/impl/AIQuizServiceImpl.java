@@ -1,43 +1,45 @@
 package com.moretale.domain.quiz.service.impl;
 
+import com.moretale.domain.quiz.dto.AIQuizJobRequest;
+import com.moretale.domain.quiz.dto.AIQuizJobResponse;
+import com.moretale.domain.quiz.dto.AIQuizResultResponse;
 import com.moretale.domain.quiz.entity.*;
 import com.moretale.domain.quiz.service.AIQuizService;
 import com.moretale.domain.story.entity.Slide;
 import com.moretale.domain.story.entity.Story;
+import com.moretale.domain.story.entity.StoryToken;
+import com.moretale.global.config.MoreTaleProperties;
+import com.moretale.global.exception.BusinessException;
+import com.moretale.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * AI 기반 퀴즈 생성 구현체
+ * AI 서버 연동 퀴즈 생성 구현체
  *
- * TODO: 실제 LLM API 연동 시 아래 프롬프트 구조 참고:
- *
- * [시스템 프롬프트]
- * "당신은 아동 교육용 퀴즈 생성 전문가입니다.
- *  다음 동화를 읽고, 아이의 단어 이해력과 줄거리 이해력을 동시에 평가하는 퀴즈를 생성하세요.
- *  - 단어를 모르면 풀 수 없는 VOCABULARY 유형 문제를 {vocabCount}개 생성하세요.
- *  - 줄거리를 이해해야 풀 수 있는 STORY 유형 문제를 {storyCount}개 생성하세요.
- *  - 문제 언어: {language}
- *  - 난이도: {difficulty}
- *  - 선다형(MULTIPLE_CHOICE)과 참/거짓(TRUE_FALSE)을 혼합하여 생성하세요.
- *  - 선다형은 4개의 보기를 제공하고, 정답 번호(1~4)를 반환하세요.
- *  - T/F는 정답을 TRUE 또는 FALSE로 반환하세요.
- *  - JSON 형식으로만 응답하세요."
- *
- * [유저 프롬프트]
- * "동화 제목: {title}
- *  동화 내용:
- *  {slide 텍스트 전체}
- *  핵심 단어 목록: {highlight 단어들}"
+ * 흐름:
+ *  1. Story 엔티티에서 슬라이드 텍스트와 핵심 단어 수집
+ *  2. POST /internal/ai/quiz/jobs → job_id 획득
+ *  3. GET  /internal/ai/quiz/jobs/{jobId}/result → 폴링으로 결과 획득
+ *  4. AI 응답 → QuizQuestion 엔티티 변환 후 반환
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AIQuizServiceImpl implements AIQuizService {
+
+    private static final int POLL_MAX_ATTEMPTS = 20;
+    private static final long POLL_INTERVAL_MS = 3000;
+    private static final String DEFAULT_AI_MODEL = "gemini-2.5-flash";
+
+    private final MoreTaleProperties properties;
+    private final RestClient.Builder restClientBuilder;
 
     @Override
     public List<QuizQuestion> generateQuestions(
@@ -46,91 +48,300 @@ public class AIQuizServiceImpl implements AIQuizService {
             String language,
             int count
     ) {
-        log.info("퀴즈 문제 생성 요청 - storyId={}, difficulty={}, language={}, count={}",
+        log.info("AI 퀴즈 생성 요청 - storyId={}, difficulty={}, language={}, count={}",
                 story.getStoryId(), difficulty, language, count);
 
-        // 동화 내용 수집
-        String storyContent = collectStoryContent(story);
-        String highlightWords = collectHighlightWords(story);
+        AIQuizJobRequest request = buildJobRequest(story, language, count);
+        String jobId = enqueueQuizJob(request);
+        AIQuizResultResponse.AIQuizData quizData = pollQuizResult(jobId);
+        List<QuizQuestion> questions = convertToQuizQuestions(quizData);
 
-        log.info("동화 내용 수집 완료 - 길이={}, 핵심단어={}", storyContent.length(), highlightWords);
+        log.info("AI 퀴즈 생성 완료 - storyId={}, jobId={}, 생성된 문제 수={}",
+                story.getStoryId(), jobId, questions.size());
 
-        // TODO: 실제 LLM API 호출
-        // String prompt = buildPrompt(story, difficulty, language, count, storyContent, highlightWords);
-        // String llmResponse = llmClient.call(prompt);
-        // return parseQuizResponse(llmResponse);
-
-        // 더미 데이터 반환 (실제 연동 전까지)
-        return generateDummyQuestions(story, difficulty, count);
+        return questions;
     }
 
-    // 동화 전체 텍스트 수집
-    private String collectStoryContent(Story story) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("제목: ").append(story.getTitle()).append("\n\n");
+    private AIQuizJobRequest buildJobRequest(Story story, String language, int count) {
+        List<AIQuizJobRequest.AIQuizPagePayload> pages = new ArrayList<>();
+
         for (Slide slide : story.getSlides()) {
-            if (slide.getTextKr() != null) {
-                sb.append("[장면 ").append(slide.getOrder()).append("]\n");
-                sb.append(slide.getTextKr()).append("\n\n");
+            if (isCoverSlide(slide)) {
+                continue;
+            }
+
+            pages.add(
+                    AIQuizJobRequest.AIQuizPagePayload.builder()
+                            .pageNumber(normalizePageNumber(slide))
+                            .textPrimary(slide.getTextKr() != null ? slide.getTextKr() : "")
+                            .textSecondary(slide.getTextNative() != null ? slide.getTextNative() : "")
+                            .illustrationPrompt("")
+                            .vocabulary(buildVocabulary(slide))
+                            .build()
+            );
+        }
+
+        String primaryLanguage = language != null && !language.isBlank()
+                ? language
+                : getDefaultPrimaryLanguage(story);
+
+        String secondaryLanguage = story.getSecondaryLanguage() != null
+                ? story.getSecondaryLanguage()
+                : "en";
+
+        AIQuizJobRequest.AIQuizStoryPayload storyPayload =
+                AIQuizJobRequest.AIQuizStoryPayload.builder()
+                        .titlePrimary(story.getTitle())
+                        .titleSecondary(story.getTitle())
+                        .authorName("MoreTale")
+                        .primaryLanguage(primaryLanguage)
+                        .secondaryLanguage(secondaryLanguage)
+                        .imageStyle("storybook")
+                        .mainCharacterDesign(
+                                story.getChildName() != null && !story.getChildName().isBlank()
+                                        ? story.getChildName()
+                                        : "child"
+                        )
+                        .pages(pages)
+                        .build();
+
+        return AIQuizJobRequest.builder()
+                .callbackUrl(buildCallbackUrl())
+                .storyId(String.valueOf(story.getStoryId()))
+                .story(storyPayload)
+                .questionCount(count)
+                .model(DEFAULT_AI_MODEL)
+                .build();
+    }
+
+    private List<AIQuizJobRequest.AIQuizVocabEntry> buildVocabulary(Slide slide) {
+        List<AIQuizJobRequest.AIQuizVocabEntry> vocabulary = new ArrayList<>();
+
+        if (slide.getTokens() == null || slide.getTokens().isEmpty()) {
+            return vocabulary;
+        }
+
+        for (StoryToken token : slide.getTokens()) {
+            if (!Boolean.TRUE.equals(token.getHighlight())) {
+                continue;
+            }
+
+            vocabulary.add(
+                    AIQuizJobRequest.AIQuizVocabEntry.builder()
+                            .entryId(token.getTokenId() != null ? "token-" + token.getTokenId() : "")
+                            .primaryWord(token.getText() != null ? token.getText() : "")
+                            .secondaryWord(token.getTranslation() != null ? token.getTranslation() : "")
+                            .primaryDefinition(token.getDefinition() != null ? token.getDefinition() : "")
+                            .secondaryDefinition(token.getSecondaryDefinition() != null
+                                    ? token.getSecondaryDefinition()
+                                    : "")
+                            .build()
+            );
+        }
+
+        return vocabulary;
+    }
+
+    private String buildCallbackUrl() {
+        MoreTaleProperties.Ai ai = properties.getAi();
+        String baseUrl = ai.getCallbackBaseUrl();
+
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return "http://localhost:8080/internal/ai/callback";
+        }
+
+        return baseUrl.replaceAll("/+$", "") + "/internal/ai/callback";
+    }
+
+    private String getDefaultPrimaryLanguage(Story story) {
+        if (story.getPrimaryLanguage() != null && !story.getPrimaryLanguage().isBlank()) {
+            return story.getPrimaryLanguage();
+        }
+        return "ko";
+    }
+
+    private int normalizePageNumber(Slide slide) {
+        if (slide.getOrder() == null) {
+            return 1;
+        }
+        return slide.getOrder() <= 0 ? 1 : slide.getOrder();
+    }
+
+    private boolean isCoverSlide(Slide slide) {
+        if (slide.getOrder() == null || slide.getOrder() != 0) {
+            return false;
+        }
+
+        boolean textKrEmpty = slide.getTextKr() == null || slide.getTextKr().isBlank();
+        boolean textNativeEmpty = slide.getTextNative() == null || slide.getTextNative().isBlank();
+
+        return textKrEmpty && textNativeEmpty;
+    }
+
+    private String enqueueQuizJob(AIQuizJobRequest request) {
+        try {
+            AIQuizJobResponse response = aiClient().post()
+                    .uri("/internal/ai/quiz/jobs")
+                    .body(request)
+                    .retrieve()
+                    .body(AIQuizJobResponse.class);
+
+            if (response == null || response.getJobId() == null) {
+                throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
+            }
+
+            log.info("퀴즈 job 등록 완료 - jobId={}, status={}",
+                    response.getJobId(), response.getStatus());
+
+            return response.getJobId();
+
+        } catch (RestClientResponseException e) {
+            log.error("퀴즈 job 등록 실패 - status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+        }
+    }
+
+    private AIQuizResultResponse.AIQuizData pollQuizResult(String jobId) {
+        for (int attempt = 1; attempt <= POLL_MAX_ATTEMPTS; attempt++) {
+            try {
+                log.info("퀴즈 결과 폴링 - jobId={}, attempt={}/{}",
+                        jobId, attempt, POLL_MAX_ATTEMPTS);
+
+                AIQuizResultResponse result = aiClient().get()
+                        .uri("/internal/ai/quiz/jobs/{jobId}/result", jobId)
+                        .retrieve()
+                        .body(AIQuizResultResponse.class);
+
+                if (result == null) {
+                    throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
+                }
+
+                if ("completed".equalsIgnoreCase(result.getStatus())) {
+                    if (result.getData() == null) {
+                        log.error("퀴즈 job 완료됐지만 data가 null - jobId={}", jobId);
+                        throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
+                    }
+
+                    log.info("퀴즈 job 완료 - jobId={}", jobId);
+                    return result.getData();
+                }
+
+                if ("failed".equalsIgnoreCase(result.getStatus())) {
+                    log.error("퀴즈 job 실패 - jobId={}, error={}", jobId, result.getError());
+                    throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+                }
+
+                log.debug("퀴즈 job 진행 중 - jobId={}, status={}", jobId, result.getStatus());
+                Thread.sleep(POLL_INTERVAL_MS);
+
+            } catch (RestClientResponseException e) {
+                if (e.getStatusCode().value() == 409) {
+                    log.debug("퀴즈 결과 아직 미준비(409) - jobId={}, attempt={}", jobId, attempt);
+                    sleepForNextPoll();
+                    continue;
+                }
+
+                if (e.getStatusCode().value() == 404) {
+                    log.error("퀴즈 job을 찾을 수 없음 - jobId={}", jobId);
+                    throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+                }
+
+                log.error("퀴즈 결과 조회 실패 - jobId={}, status={}, body={}",
+                        jobId, e.getStatusCode(), e.getResponseBodyAsString(), e);
+                throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
             }
         }
-        return sb.toString();
+
+        log.error("퀴즈 job 폴링 타임아웃 - jobId={}, maxAttempts={}",
+                jobId, POLL_MAX_ATTEMPTS);
+        throw new BusinessException(ErrorCode.AI_SERVICE_TIMEOUT);
     }
 
-    // 핵심 단어(하이라이트) 수집
-    private String collectHighlightWords(Story story) {
-        List<String> words = new ArrayList<>();
-        for (Slide slide : story.getSlides()) {
-            slide.getTokens().stream()
-                    .filter(token -> Boolean.TRUE.equals(token.getHighlight()))
-                    .map(token -> token.getText() + "(" + token.getTranslation() + ")")
-                    .forEach(words::add);
+    private void sleepForNextPoll() {
+        try {
+            Thread.sleep(POLL_INTERVAL_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.AI_SERVICE_ERROR);
         }
-        return String.join(", ", words);
     }
 
-    // 더미 퀴즈 문제 생성 (LLM 연동 전 테스트용)
-    private List<QuizQuestion> generateDummyQuestions(
-            Story story, QuizDifficulty difficulty, int count
-    ) {
+    private List<QuizQuestion> convertToQuizQuestions(AIQuizResultResponse.AIQuizData quizData) {
         List<QuizQuestion> questions = new ArrayList<>();
-        int vocabCount = count / 2;       // 절반은 단어 이해
-        int storyCount = count - vocabCount; // 나머지는 줄거리 이해
 
-        // 단어 이해 선다형 문제
-        for (int i = 0; i < vocabCount; i++) {
-            QuizQuestion q = QuizQuestion.builder()
+        if (quizData.getQuestions() == null || quizData.getQuestions().isEmpty()) {
+            log.warn("AI가 반환한 문제 목록이 비어있음 - storyId={}", quizData.getStoryId());
+            throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
+        }
+
+        for (int i = 0; i < quizData.getQuestions().size(); i++) {
+            AIQuizResultResponse.AIQuizQuestionData qData = quizData.getQuestions().get(i);
+
+            EvaluationType evaluationType = mapSkillToEvaluationType(qData.getSkill());
+
+            String correctAnswer = qData.getAnswer() != null
+                    ? qData.getAnswer().getChoiceId()
+                    : "1";
+
+            QuizQuestion question = QuizQuestion.builder()
                     .questionType(QuestionType.MULTIPLE_CHOICE)
-                    .evaluationType(EvaluationType.VOCABULARY)
+                    .evaluationType(evaluationType)
                     .questionOrder(i + 1)
-                    .questionText("'" + story.getTitle() + "'에서 나온 단어의 뜻으로 올바른 것은? (문제 " + (i + 1) + ")")
-                    .correctAnswer("1")
-                    .explanation("이 단어는 동화에서 핵심적인 역할을 합니다.")
+                    .questionText(qData.getQuestionText())
+                    .correctAnswer(correctAnswer)
+                    .explanation(qData.getExplanation())
                     .build();
 
-            q.addOption(QuizOption.builder().optionOrder(1).optionText("정답 보기").build());
-            q.addOption(QuizOption.builder().optionOrder(2).optionText("오답 보기 A").build());
-            q.addOption(QuizOption.builder().optionOrder(3).optionText("오답 보기 B").build());
-            q.addOption(QuizOption.builder().optionOrder(4).optionText("오답 보기 C").build());
+            if (qData.getChoices() != null) {
+                for (AIQuizResultResponse.AIQuizChoice choice : qData.getChoices()) {
+                    try {
+                        int optionOrder = Integer.parseInt(choice.getChoiceId());
+                        question.addOption(
+                                QuizOption.builder()
+                                        .optionOrder(optionOrder)
+                                        .optionText(choice.getText())
+                                        .build()
+                        );
+                    } catch (NumberFormatException e) {
+                        log.warn("보기 choice_id 파싱 실패 - choiceId={}", choice.getChoiceId());
+                    }
+                }
+            }
 
-            questions.add(q);
+            questions.add(question);
+
+            log.debug("문제 변환 완료 - order={}, skill={}, evaluationType={}, correctAnswer={}",
+                    i + 1, qData.getSkill(), evaluationType, correctAnswer);
         }
 
-        // 줄거리 이해 T/F 문제
-        for (int i = 0; i < storyCount; i++) {
-            QuizQuestion q = QuizQuestion.builder()
-                    .questionType(QuestionType.TRUE_FALSE)
-                    .evaluationType(EvaluationType.STORY)
-                    .questionOrder(vocabCount + i + 1)
-                    .questionText("'" + story.getTitle() + "'에서 주인공은 모험을 떠났다. (문제 " + (vocabCount + i + 1) + ")")
-                    .correctAnswer("TRUE")
-                    .explanation("동화에서 주인공은 용기를 내어 모험을 떠납니다.")
-                    .build();
-
-            questions.add(q);
-        }
-
-        log.info("더미 퀴즈 문제 생성 완료 - 단어이해={}개, 줄거리이해={}개", vocabCount, storyCount);
+        log.info("AI 응답 변환 완료 - 총 {}개 문제", questions.size());
         return questions;
+    }
+
+    private EvaluationType mapSkillToEvaluationType(String skill) {
+        if (skill == null) {
+            return EvaluationType.STORY;
+        }
+
+        return switch (skill.toUpperCase()) {
+            case "VOCABULARY" -> EvaluationType.VOCABULARY;
+            default -> EvaluationType.STORY;
+        };
+    }
+
+    private RestClient aiClient() {
+        MoreTaleProperties.Ai ai = properties.getAi();
+        RestClient.Builder builder = restClientBuilder.baseUrl(ai.resolveBaseUrl());
+
+        if (ai.getApiKey() != null && !ai.getApiKey().isBlank()) {
+            builder.defaultHeader("X-API-Key", ai.getApiKey());
+        }
+
+        return builder.build();
     }
 }
