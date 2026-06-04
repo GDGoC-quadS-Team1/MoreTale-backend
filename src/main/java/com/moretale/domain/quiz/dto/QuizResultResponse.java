@@ -77,10 +77,10 @@ public class QuizResultResponse {
         @Schema(description = "현재 보유 꿀단지 수", example = "8")
         private Integer currentHoneyJarCount;
 
-        @Schema(description = "무료 생성 가능 여부 (20개 이상)", example = "false")
+        @Schema(description = "무료 생성 가능 여부 (10개 이상)", example = "false")
         private Boolean canGenerateFree;
 
-        @Schema(description = "20개 달성 시 자동 차감 여부", example = "false")
+        @Schema(description = "10개 달성 시 자동 차감 여부", example = "false")
         private Boolean autoUsedForFreeGeneration;
 
         @Schema(description = "보상 관련 메시지", example = "🏆 100점 달성! 꿀단지 1개 획득! 🍯")
