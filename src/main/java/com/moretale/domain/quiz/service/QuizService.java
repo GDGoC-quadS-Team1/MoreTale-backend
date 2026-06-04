@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
  * 꿀단지 흐름:
  *  - 동화 완독: POST /api/quiz/story-complete → +1
  *  - 퀴즈 100점: submit 채점 후 자동 → +1
- *  - 20개 달성 시 → 자동 -20 (무료 생성 1회)
+ *  - 10개 달성 시 → 자동 -10 (무료 생성 1회)
  *  - 동화 1권당 최대 2개 (완독 1 + 퀴즈 1) 제한
  *
  * email 기반 사용자 조회 → userId 기반으로 통일
@@ -188,7 +188,7 @@ public class QuizService {
 
         var honeyJar = honeyJarService.getOrCreateHoneyJar(user);
         String message = autoUsed
-                ? "🎉 꿀단지 20개 달성! 동화 1권을 무료로 만들 수 있어요!"
+                ? "🎉 꿀단지 10개 달성! 동화 1권을 무료로 만들 수 있어요!"
                 : "📖 동화를 다 읽었어요! 꿀단지 1개 획득! 🍯";
 
         log.info("동화 완독 처리 완료 - userId={}, storyId={}, 꿀단지자동차감={}",
@@ -277,7 +277,7 @@ public class QuizService {
     private String buildRewardMessage(boolean isPerfect, int earned, boolean autoUsed, boolean alreadyRewarded) {
         if (!isPerfect) return "퀴즈 100점 달성 시 꿀단지를 받을 수 있어요! 🍯";
         if (alreadyRewarded && earned == 0) return "이미 이 동화에서 퀴즈 보상을 받으셨어요!";
-        if (autoUsed) return "🎉 꿀단지 20개 달성! 동화 1권을 무료로 만들 수 있어요!";
+        if (autoUsed) return "🎉 꿀단지 10개 달성! 동화 1권을 무료로 만들 수 있어요!";
         return "🏆 100점 달성! 꿀단지 1개 획득! 🍯";
     }
 
@@ -287,7 +287,7 @@ public class QuizService {
         return QuizResultResponse.HoneyJarRewardInfo.builder()
                 .earnedHoneyJars(earned)
                 .currentHoneyJarCount(currentCount)
-                .canGenerateFree(currentCount >= 20)
+                .canGenerateFree(currentCount >= 10)
                 .autoUsedForFreeGeneration(autoUsed)
                 .rewardMessage(message)
                 .build();

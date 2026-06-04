@@ -46,6 +46,7 @@ public enum ErrorCode {
     // AI 서비스 (AI)
     AI_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "A001", "AI 서비스 오류가 발생했습니다."),
     AI_RESPONSE_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "A002", "AI 응답이 올바르지 않습니다."),
+    AI_SERVICE_TIMEOUT(HttpStatus.REQUEST_TIMEOUT, "A003", "AI 서비스 응답 시간이 초과되었습니다."),
 
     // 파일/저장 (File)
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "파일 업로드에 실패했습니다."),
