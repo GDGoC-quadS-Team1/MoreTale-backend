@@ -65,14 +65,32 @@ public class AIQuizServiceImpl implements AIQuizService {
     private AIQuizJobRequest buildJobRequest(Story story, String language, int count) {
         List<AIQuizJobRequest.AIQuizPagePayload> pages = new ArrayList<>();
 
+        log.info("퀴즈 생성용 전체 슬라이드 수 - storyId={}, slideCount={}",
+                story.getStoryId(),
+                story.getSlides() != null ? story.getSlides().size() : 0
+        );
+
+        int pageNumber = 1;
+
         for (Slide slide : story.getSlides()) {
+            log.info(
+                    "퀴즈 페이지 확인 - storyId={}, slideId={}, order={}, textKrBlank={}, textNativeBlank={}",
+                    story.getStoryId(),
+                    slide.getSlideId(),
+                    slide.getOrder(),
+                    slide.getTextKr() == null || slide.getTextKr().isBlank(),
+                    slide.getTextNative() == null || slide.getTextNative().isBlank()
+            );
+
             if (isCoverSlide(slide)) {
+                log.info("퀴즈 생성에서 커버 슬라이드 제외 - storyId={}, slideId={}, order={}",
+                        story.getStoryId(), slide.getSlideId(), slide.getOrder());
                 continue;
             }
 
             pages.add(
                     AIQuizJobRequest.AIQuizPagePayload.builder()
-                            .pageNumber(normalizePageNumber(slide))
+                            .pageNumber(pageNumber++)
                             .textPrimary(slide.getTextKr() != null ? slide.getTextKr() : "")
                             .textSecondary(slide.getTextNative() != null ? slide.getTextNative() : "")
                             .illustrationPrompt("")
@@ -80,6 +98,13 @@ public class AIQuizServiceImpl implements AIQuizService {
                             .build()
             );
         }
+
+        log.info("AI 퀴즈 요청 페이지 번호 - storyId={}, pageNumbers={}",
+                story.getStoryId(),
+                pages.stream()
+                        .map(AIQuizJobRequest.AIQuizPagePayload::getPageNumber)
+                        .toList()
+        );
 
         String primaryLanguage = language != null && !language.isBlank()
                 ? language
@@ -158,13 +183,6 @@ public class AIQuizServiceImpl implements AIQuizService {
             return story.getPrimaryLanguage();
         }
         return "ko";
-    }
-
-    private int normalizePageNumber(Slide slide) {
-        if (slide.getOrder() == null) {
-            return 1;
-        }
-        return slide.getOrder() <= 0 ? 1 : slide.getOrder();
     }
 
     private boolean isCoverSlide(Slide slide) {
