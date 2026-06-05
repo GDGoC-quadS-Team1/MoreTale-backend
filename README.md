@@ -326,7 +326,7 @@ Cloud Run Deploy
 
 ### CI/CD Pipeline
 
-GitHub Actions를 사용하여 `main` 또는 `develop` 브랜치에 변경 사항이 반영되면 백엔드 애플리케이션을 자동으로 빌드합니다.  
+GitHub Actions를 사용해 `main` 또는 `develop` 브랜치에 변경 사항이 반영되면 백엔드 애플리케이션을 자동으로 빌드합니다.  
 빌드된 애플리케이션은 Docker 이미지로 생성되어 Google Artifact Registry에 업로드되며, 이후 Google Cloud Run에 배포되어 최신 버전의 서비스를 운영 환경에 반영합니다.
 
 ### Cloud SQL Connection
