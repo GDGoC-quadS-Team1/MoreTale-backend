@@ -365,7 +365,7 @@ MoreTale-backend
 │   │   │
 │   │   └── resources
 │   │       ├── db.migration
-│   │       │   ├── V2_add_onboarding_profile_fields.sql
+│   │       │   ├── V1_add_onboarding_profile_fields.sql
 │   │       │   ├── V2_language_enum_migration.sql
 │   │       │   ├── V3_update_enum_values.sql
 │   │       │   ├── V4_create_story_token_table.sql
