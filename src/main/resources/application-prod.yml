@@ -37,3 +37,10 @@ logging:
     com.moretale: info
     org.hibernate.SQL: warn
     org.hibernate.orm.jdbc.bind: warn
+
+moretale:
+  cors:
+    allowed-origins:
+      - https://moretale.vercel.app
+      - http://localhost:5173
+      - http://localhost:3000
