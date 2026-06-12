@@ -94,8 +94,11 @@ public class AIStoryServiceImpl implements AIStoryService {
                     .retrieve()
                     .body(String.class);
 
-            log.info("[AIStoryService] AI 원본 결과 응답 - jobId={}, rawResponse={}",
-                    jobId, rawResponse);
+            log.info(
+                    "[AIStoryService] AI 원본 결과 수신 완료 - jobId={}, responseSize={} chars",
+                    jobId,
+                    rawResponse != null ? rawResponse.length() : 0
+            );
 
             AiStoryResultEnvelope result = objectMapper.readValue(
                     rawResponse,
@@ -105,6 +108,14 @@ public class AIStoryServiceImpl implements AIStoryService {
             if (result == null || result.data == null) {
                 throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID);
             }
+
+            log.info(
+                    "[AIStoryService] AI 결과 파싱 완료 - jobId={}, status={}, title={}, slideCount={}",
+                    jobId,
+                    result.status,
+                    result.data.getTitle(),
+                    result.data.getSlides() != null ? result.data.getSlides().size() : 0
+            );
 
             logAiVocabularySummary(jobId, result.data);
 
@@ -164,11 +175,13 @@ public class AIStoryServiceImpl implements AIStoryService {
                     ? slide.getVocabulary().size()
                     : 0;
 
-            log.info("[AIStoryService] AI 결과 slide vocabulary 확인 - jobId={}, order={}, vocabularyNull={}, vocabularySize={}",
+            log.info(
+                    "[AIStoryService] AI 결과 slide vocabulary 확인 - jobId={}, order={}, vocabularyNull={}, vocabularySize={}",
                     jobId,
                     slide.getOrder(),
                     slide.getVocabulary() == null,
-                    vocabularySize);
+                    vocabularySize
+            );
         });
     }
 

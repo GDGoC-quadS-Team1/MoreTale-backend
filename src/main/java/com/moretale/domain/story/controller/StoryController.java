@@ -153,9 +153,9 @@ public class StoryController {
 
         if (request.getSlides() != null) {
             request.getSlides().forEach(slide -> {
-                log.info("저장 요청 slide - order={}, vocabulary={}",
+                log.info("저장 요청 slide - order={}, vocabularySize={}",
                         slide.getOrder(),
-                        slide.getVocabulary());
+                        slide.getVocabulary() != null ? slide.getVocabulary().size() : 0);
             });
         }
 
