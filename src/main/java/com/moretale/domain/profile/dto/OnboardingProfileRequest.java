@@ -29,7 +29,7 @@ import lombok.*;
  *   ...
  * }
  */
-@ValidLanguageInput  // Cross-field validation (언어 + custom 조합 검증)
+@ValidLanguageInput
 @Getter
 @Setter
 @NoArgsConstructor
@@ -45,9 +45,17 @@ public class OnboardingProfileRequest implements LanguageValidatable {
     private String childName;
 
     @NotNull(message = "아이 나이 그룹은 필수입니다.")
-    @Schema(description = "나이 그룹 (AGE_0_2 / AGE_3_4 / AGE_5_6 / AGE_7_8 / AGE_9_10 / AGE_10_PLUS)",
-            example = "AGE_5_6")
+    @Schema(
+            description = "나이 그룹 (AGE_0_2 / AGE_3_4 / AGE_5_6 / AGE_7_8 / AGE_9_10 / AGE_10_PLUS)",
+            example = "AGE_5_6"
+    )
     private AgeGroup ageGroup;
+
+    @NotNull(message = "아이 실제 나이는 필수입니다.")
+    @Min(value = 0, message = "아이 나이는 0세 이상이어야 합니다.")
+    @Max(value = 20, message = "아이 나이는 20세 이하여야 합니다.")
+    @Schema(description = "아이 실제 나이", example = "8")
+    private Integer childAge;
 
     // 2단계: 주인공이 쓰는 말 (언어 선택)
     @NotNull(message = "첫 번째 언어는 필수입니다.")
@@ -93,8 +101,10 @@ public class OnboardingProfileRequest implements LanguageValidatable {
 
     // 4단계: 함께 사는 사람들
     @NotNull(message = "함께 사는 사람 정보는 필수입니다.")
-    @Schema(description = "가족 구조 (ONE_PARENT/TWO_PARENTS/EXTENDED_FAMILY/SECRET/CUSTOM)",
-            example = "TWO_PARENTS")
+    @Schema(
+            description = "가족 구조 (ONE_PARENT/TWO_PARENTS/EXTENDED_FAMILY/SECRET/CUSTOM)",
+            example = "TWO_PARENTS"
+    )
     private FamilyStructure familyStructure;
 
     @Size(max = 200, message = "가족 구조 직접 입력은 200자 이하여야 합니다.")
@@ -103,8 +113,10 @@ public class OnboardingProfileRequest implements LanguageValidatable {
 
     // 5단계: 어떤 이야기가 좋아요
     @NotNull(message = "선호 이야기 유형은 필수입니다.")
-    @Schema(description = "이야기 선호도 (WARM_HUG/FUN_ADVENTURE/DAILY_LIFE/CUSTOM)",
-            example = "FUN_ADVENTURE")
+    @Schema(
+            description = "이야기 선호도 (WARM_HUG/FUN_ADVENTURE/DAILY_LIFE/CUSTOM)",
+            example = "FUN_ADVENTURE"
+    )
     private StoryPreference storyPreference;
 
     @Size(max = 200, message = "이야기 선호도 직접 입력은 200자 이하여야 합니다.")

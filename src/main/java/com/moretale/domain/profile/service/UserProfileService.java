@@ -50,6 +50,7 @@ public class UserProfileService {
                 .user(user)
                 .childName(request.getChildName())
                 .ageGroup(request.getAgeGroup())
+                .childAge(request.getChildAge())
                 // 언어 (Enum + Custom)
                 .firstLanguage(request.getFirstLanguage())
                 .customFirstLanguage(customFirst)
