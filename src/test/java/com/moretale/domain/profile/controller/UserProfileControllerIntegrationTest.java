@@ -48,6 +48,7 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.childName").value("민준"))
+                .andExpect(jsonPath("$.data.childAge").value(5))
                 .andExpect(jsonPath("$.data.profileId").exists())
                 .andExpect(jsonPath("$.data.firstLanguage").value("KO"))
                 .andExpect(jsonPath("$.data.secondLanguage").value("VI"))
@@ -69,7 +70,8 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.firstLanguage").value("OTHER"))
                 .andExpect(jsonPath("$.data.customFirstLanguage").value("태국어"))
-                .andExpect(jsonPath("$.data.firstLanguageDisplay").value("태국어"));
+                .andExpect(jsonPath("$.data.firstLanguageDisplay").value("태국어"))
+                .andExpect(jsonPath("$.data.childAge").value(5));
     }
 
     @Test
@@ -211,6 +213,7 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
         return OnboardingProfileRequest.builder()
                 .childName("민준")
                 .ageGroup(AgeGroup.AGE_5_6)
+                .childAge(5)
                 .firstLanguage(Language.KO)
                 .customFirstLanguage(null)
                 .secondLanguage(Language.VI)
