@@ -38,7 +38,7 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("온보딩 프로필 생성 - 정상 요청 → 201 + 응답 구조 검증")
+    @DisplayName("온보딩 프로필 생성 - 정상 요청 → 응답 구조 검증")
     void createOnboardingProfile_success() throws Exception {
         OnboardingProfileRequest request = buildValidOnboardingRequest();
 
@@ -51,6 +51,8 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.profileId").exists())
                 .andExpect(jsonPath("$.data.firstLanguage").value("KO"))
                 .andExpect(jsonPath("$.data.secondLanguage").value("VI"))
+                .andExpect(jsonPath("$.data.firstLanguageDisplay").value("한국어"))
+                .andExpect(jsonPath("$.data.secondLanguageDisplay").value("베트남어"))
                 .andExpect(jsonPath("$.message").value("프로필 설정이 완료되었습니다!"));
     }
 
@@ -141,31 +143,26 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.firstLanguage").value("EN"))
-                .andExpect(jsonPath("$.data.secondLanguage").value("JA"))
+                .andExpect(jsonPath("$.data.firstLanguageDisplay").value("영어"))
+                .andExpect(jsonPath("$.data.secondLanguageDisplay").value("일본어"))
                 .andExpect(jsonPath("$.message").value("언어 설정이 변경되었습니다."));
     }
 
     @Test
     @DisplayName("언어 설정 수정 - OTHER 선택 + custom 없음 → 현재 구현 기준 실패")
     void updateLanguage_otherWithoutCustom_validationFail() throws Exception {
+        UserProfile saved = userProfileRepository.save(TestFixture.createProfile(testUser));
 
-        UserProfile saved =
-                userProfileRepository.save(TestFixture.createProfile(testUser));
+        LanguageUpdateRequest request = LanguageUpdateRequest.builder()
+                .firstLanguage(Language.OTHER)
+                .customFirstLanguage(null)
+                .secondLanguage(Language.VI)
+                .customSecondLanguage(null)
+                .build();
 
-        LanguageUpdateRequest request =
-                LanguageUpdateRequest.builder()
-                        .firstLanguage(Language.OTHER)
-                        .customFirstLanguage(null)
-                        .secondLanguage(Language.VI)
-                        .customSecondLanguage(null)
-                        .build();
-
-        perform(
-                patch("/api/users/profile/" + saved.getProfileId() + "/language")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request))
-        )
+        perform(patch("/api/users/profile/" + saved.getProfileId() + "/language")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isInternalServerError());
     }
 
@@ -180,7 +177,7 @@ class UserProfileControllerIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("프로필 존재 여부 - 프로필 없음 → false")
+    @DisplayName("프로필 존재 여부 - 프로필 없음 시 false")
     void hasProfile_returnsFalse() throws Exception {
         perform(get("/api/users/profile/exists"))
                 .andExpect(status().isOk())

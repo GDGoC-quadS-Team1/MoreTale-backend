@@ -52,6 +52,14 @@ class UserProfileRequestValidationTest {
     }
 
     @Test
+    @DisplayName("childAge null - 검증 실패")
+    void invalid_childAgeNull() {
+        UserProfileRequest request = validBuilder().childAge(null).build();
+        Set<ConstraintViolation<UserProfileRequest>> violations = validator.validate(request);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("childAge"));
+    }
+
+    @Test
     @DisplayName("firstLanguage null - 검증 실패")
     void invalid_firstLanguageNull() {
         UserProfileRequest request = validBuilder().firstLanguage(null).build();
@@ -144,6 +152,7 @@ class UserProfileRequestValidationTest {
         return UserProfileRequest.builder()
                 .childName("민준")
                 .ageGroup(AgeGroup.AGE_5_6)
+                .childAge(5)
                 .firstLanguage(Language.KO)
                 .customFirstLanguage(null)
                 .secondLanguage(Language.VI)
